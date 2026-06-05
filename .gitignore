@@ -1,0 +1,28 @@
+# --- Python ---
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+env/
+venv3/
+.env
+.venv
+*.pyc
+
+# --- IDE / Editor ---
+.vscode/
+.idea/
+*.swp
+*.swo
+
+
+# --- Sistema operativo ---
+.DS_Store
+Thumbs.db
+
+agent.py
+agent1.py
+agent2.py
+risultati-test.txt
+test_flow.py
