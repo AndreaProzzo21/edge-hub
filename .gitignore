@@ -21,8 +21,6 @@ venv3/
 .DS_Store
 Thumbs.db
 
-agent.py
-agent1.py
-agent2.py
-risultati-test.txt
-test_flow.py
+test/
+edge-agent/edgehub-*
+edge-agent/go.sum
