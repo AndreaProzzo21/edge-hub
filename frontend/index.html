@@ -1,0 +1,1499 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>EdgeHub — Control Plane</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400&family=Syne:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
+<style>
+/* ============================================================
+   RESET & ROOT
+   ============================================================ */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg:       #0a0c10;
+  --surface:  #111418;
+  --surface2: #181c23;
+  --border:   rgba(255,255,255,.07);
+  --border2:  rgba(255,255,255,.12);
+
+  --accent:   #00e5ff;
+  --accent2:  #7c3aed;
+  --warn:     #f59e0b;
+  --danger:   #ef4444;
+  --ok:       #22c55e;
+
+  --text:     #e8eaf0;
+  --text2:    #8b92a5;
+  --text3:    #505869;
+
+  --radius:   10px;
+  --font-ui:  'Syne', sans-serif;
+  --font-mono:'Space Mono', monospace;
+}
+
+html, body { height: 100%; background: var(--bg); color: var(--text); font-family: var(--font-ui); overflow: hidden; }
+
+/* ============================================================
+   UTILS
+   ============================================================ */
+.hidden { display: none !important; }
+.flex { display: flex; }
+.col  { flex-direction: column; }
+.gap4 { gap: 4px; }
+.gap8 { gap: 8px; }
+.gap12{ gap: 12px; }
+.gap16{ gap: 16px; }
+.gap24{ gap: 24px; }
+.align-center { align-items: center; }
+.justify-between { justify-content: space-between; }
+.grow { flex: 1; min-width: 0; min-height: 0; }
+.truncate { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* ============================================================
+   SCROLLBAR
+   ============================================================ */
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
+
+/* ============================================================
+   LOGIN PAGE
+   ============================================================ */
+#login-page {
+  position: fixed; inset: 0; z-index: 100;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--bg);
+  animation: fadeIn .4s ease;
+}
+
+.login-bg {
+  position: absolute; inset: 0; overflow: hidden; pointer-events: none;
+}
+.login-bg::before {
+  content: '';
+  position: absolute;
+  width: 600px; height: 600px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(0,229,255,.08) 0%, transparent 70%);
+  top: -100px; left: -100px;
+  animation: float1 8s ease-in-out infinite;
+}
+.login-bg::after {
+  content: '';
+  position: absolute;
+  width: 400px; height: 400px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(124,58,237,.1) 0%, transparent 70%);
+  bottom: -50px; right: 0;
+  animation: float2 6s ease-in-out infinite;
+}
+
+/* grid overlay */
+.login-grid {
+  position: absolute; inset: 0;
+  background-image:
+    linear-gradient(rgba(255,255,255,.025) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,.025) 1px, transparent 1px);
+  background-size: 40px 40px;
+}
+
+@keyframes float1 { 0%,100%{transform:translate(0,0)} 50%{transform:translate(40px,30px)} }
+@keyframes float2 { 0%,100%{transform:translate(0,0)} 50%{transform:translate(-30px,-20px)} }
+
+.login-card {
+  position: relative; z-index: 1;
+  width: 380px;
+  background: var(--surface);
+  border: 1px solid var(--border2);
+  border-radius: 16px;
+  padding: 40px;
+  box-shadow: 0 40px 80px rgba(0,0,0,.6), 0 0 0 1px rgba(0,229,255,.06);
+}
+
+.login-logo {
+  display: flex; align-items: center; gap: 10px;
+  margin-bottom: 8px;
+}
+.login-logo-icon {
+  width: 36px; height: 36px;
+  background: linear-gradient(135deg, var(--accent), var(--accent2));
+  border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+}
+.login-logo-icon svg { width: 20px; height: 20px; fill: #fff; }
+.login-logo-text { font-size: 20px; font-weight: 800; letter-spacing: -.5px; }
+.login-logo-text span { color: var(--accent); }
+
+.login-tagline { color: var(--text2); font-size: 13px; margin-bottom: 36px; font-family: var(--font-mono); }
+
+.field-label {
+  font-size: 11px; font-weight: 600; letter-spacing: 1.5px; text-transform: uppercase;
+  color: var(--text2); margin-bottom: 8px;
+}
+
+.field-wrap { position: relative; margin-bottom: 24px; }
+.field-input {
+  width: 100%;
+  background: var(--surface2);
+  border: 1px solid var(--border2);
+  border-radius: var(--radius);
+  color: var(--text);
+  font-family: var(--font-mono);
+  font-size: 14px;
+  padding: 12px 16px;
+  outline: none;
+  transition: border-color .2s, box-shadow .2s;
+}
+.field-input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(0,229,255,.1);
+}
+.field-input::placeholder { color: var(--text3); }
+
+.btn-primary {
+  width: 100%;
+  background: linear-gradient(135deg, var(--accent), #0097a7);
+  color: #000;
+  font-family: var(--font-ui);
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: .5px;
+  border: none;
+  border-radius: var(--radius);
+  padding: 13px;
+  cursor: pointer;
+  transition: opacity .2s, transform .15s;
+}
+.btn-primary:hover  { opacity: .9; }
+.btn-primary:active { transform: scale(.98); }
+.btn-primary:disabled { opacity: .5; cursor: not-allowed; }
+
+.login-error {
+  margin-top: 16px;
+  background: rgba(239,68,68,.12);
+  border: 1px solid rgba(239,68,68,.25);
+  border-radius: 8px;
+  padding: 10px 14px;
+  color: #fca5a5;
+  font-size: 13px;
+  font-family: var(--font-mono);
+}
+
+/* ============================================================
+   APP SHELL
+   ============================================================ */
+#app {
+  display: flex; height: 100vh; overflow: hidden;
+  animation: fadeIn .3s ease;
+}
+
+@keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+
+/* ============================================================
+   SIDEBAR
+   ============================================================ */
+#sidebar {
+  width: 220px; flex-shrink: 0;
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+  display: flex; flex-direction: column;
+  padding: 0;
+  overflow-y: auto;
+}
+
+.sidebar-header {
+  padding: 20px 20px 16px;
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; gap: 10px;
+}
+.sidebar-logo-icon {
+  width: 30px; height: 30px;
+  background: linear-gradient(135deg, var(--accent), var(--accent2));
+  border-radius: 7px;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+.sidebar-logo-icon svg { width: 16px; height: 16px; fill: #fff; }
+.sidebar-title { font-size: 15px; font-weight: 800; letter-spacing: -.3px; }
+.sidebar-title span { color: var(--accent); }
+
+.sidebar-section {
+  padding: 20px 12px 8px;
+}
+.sidebar-section-label {
+  font-size: 10px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase;
+  color: var(--text3); padding: 0 8px; margin-bottom: 6px;
+}
+
+.nav-item {
+  display: flex; align-items: center; gap: 10px;
+  padding: 9px 10px;
+  border-radius: 8px;
+  cursor: pointer;
+  color: var(--text2);
+  font-size: 13px; font-weight: 500;
+  transition: background .15s, color .15s;
+  user-select: none;
+  border: none; background: none; width: 100%; text-align: left;
+  font-family: var(--font-ui);
+}
+.nav-item svg { width: 16px; height: 16px; flex-shrink: 0; }
+.nav-item:hover { background: var(--surface2); color: var(--text); }
+.nav-item.active { background: rgba(0,229,255,.1); color: var(--accent); }
+
+.sidebar-bottom {
+  margin-top: auto;
+  padding: 12px;
+  border-top: 1px solid var(--border);
+}
+
+/* ============================================================
+   MAIN AREA
+   ============================================================ */
+#main {
+  flex: 1; min-width: 0;
+  display: flex; flex-direction: column;
+  overflow: hidden;
+}
+
+.topbar {
+  height: 56px; flex-shrink: 0;
+  border-bottom: 1px solid var(--border);
+  padding: 0 24px;
+  display: flex; align-items: center; justify-content: space-between;
+  background: var(--surface);
+}
+.topbar-title { font-size: 15px; font-weight: 700; }
+.topbar-right { display: flex; align-items: center; gap: 12px; }
+
+.badge {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  padding: 3px 8px;
+  border-radius: 4px;
+  font-weight: 700;
+}
+.badge-ok     { background: rgba(34,197,94,.15);  color: var(--ok);   border: 1px solid rgba(34,197,94,.2); }
+.badge-warn   { background: rgba(245,158,11,.15); color: var(--warn); border: 1px solid rgba(245,158,11,.2); }
+.badge-danger { background: rgba(239,68,68,.15);  color: var(--danger);border: 1px solid rgba(239,68,68,.2); }
+.badge-info   { background: rgba(0,229,255,.1);   color: var(--accent);border: 1px solid rgba(0,229,255,.15);}
+.badge-gray   { background: rgba(255,255,255,.06);color: var(--text2); border: 1px solid var(--border2); }
+
+.btn-icon {
+  width: 32px; height: 32px;
+  background: var(--surface2);
+  border: 1px solid var(--border2);
+  border-radius: 7px;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; color: var(--text2);
+  transition: color .15s, border-color .15s;
+}
+.btn-icon:hover { color: var(--text); border-color: var(--border2); background: var(--border); }
+.btn-icon svg { width: 15px; height: 15px; }
+
+.btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 7px 14px;
+  border-radius: 8px;
+  font-family: var(--font-ui); font-size: 13px; font-weight: 600;
+  cursor: pointer; border: none; transition: opacity .15s, transform .1s;
+}
+.btn:active { transform: scale(.98); }
+.btn-accent {
+  background: var(--accent); color: #000;
+}
+.btn-accent:hover { opacity: .88; }
+.btn-ghost {
+  background: var(--surface2); color: var(--text);
+  border: 1px solid var(--border2);
+}
+.btn-ghost:hover { border-color: var(--border2); background: var(--border); }
+.btn-danger-ghost {
+  background: rgba(239,68,68,.1); color: #f87171;
+  border: 1px solid rgba(239,68,68,.2);
+}
+.btn-danger-ghost:hover { background: rgba(239,68,68,.18); }
+.btn svg { width: 14px; height: 14px; }
+
+.page { display: none; flex: 1; flex-direction: column; overflow: hidden; }
+.page.active { display: flex; }
+
+.page-body { flex: 1; overflow-y: auto; padding: 28px 28px; }
+
+/* ============================================================
+   STAT CARDS
+   ============================================================ */
+.stat-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 16px;
+  margin-bottom: 28px;
+}
+.stat-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 20px;
+  position: relative; overflow: hidden;
+  transition: border-color .2s;
+}
+.stat-card:hover { border-color: var(--border2); }
+.stat-card::before {
+  content: '';
+  position: absolute; top: 0; left: 0; right: 0; height: 2px;
+}
+.stat-card.c-ok::before    { background: var(--ok); }
+.stat-card.c-warn::before  { background: var(--warn); }
+.stat-card.c-danger::before{ background: var(--danger); }
+.stat-card.c-accent::before{ background: var(--accent); }
+.stat-card.c-purple::before{ background: var(--accent2); }
+
+.stat-label { font-size: 11px; font-weight: 600; letter-spacing: 1.5px; text-transform: uppercase; color: var(--text2); margin-bottom: 10px; }
+.stat-value { font-size: 32px; font-weight: 800; letter-spacing: -1px; line-height: 1; }
+.stat-sub   { font-size: 12px; color: var(--text2); margin-top: 6px; font-family: var(--font-mono); }
+
+/* ============================================================
+   TABLE
+   ============================================================ */
+.table-wrap {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+.table-header {
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+}
+.table-title { font-size: 14px; font-weight: 700; }
+.table-search {
+  background: var(--surface2);
+  border: 1px solid var(--border2);
+  border-radius: 7px;
+  color: var(--text);
+  font-family: var(--font-mono); font-size: 12px;
+  padding: 6px 12px;
+  outline: none;
+  width: 200px;
+  transition: border-color .2s;
+}
+.table-search:focus { border-color: var(--accent); }
+.table-search::placeholder { color: var(--text3); }
+
+table { width: 100%; border-collapse: collapse; }
+thead tr { border-bottom: 1px solid var(--border); }
+thead th {
+  text-align: left;
+  padding: 10px 20px;
+  font-size: 11px; font-weight: 700; letter-spacing: 1.2px; text-transform: uppercase;
+  color: var(--text3);
+}
+tbody tr {
+  border-bottom: 1px solid var(--border);
+  transition: background .1s;
+}
+tbody tr:last-child { border-bottom: none; }
+tbody tr:hover { background: rgba(255,255,255,.025); }
+tbody td { padding: 12px 20px; font-size: 13px; }
+
+.online-dot {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: var(--ok);
+  box-shadow: 0 0 6px var(--ok);
+  display: inline-block;
+  animation: pulse 2s ease infinite;
+}
+.offline-dot {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: var(--text3);
+  display: inline-block;
+}
+@keyframes pulse {
+  0%,100%{ box-shadow: 0 0 4px var(--ok); }
+  50%{ box-shadow: 0 0 10px var(--ok), 0 0 20px rgba(34,197,94,.3); }
+}
+
+.mono { font-family: var(--font-mono); font-size: 12px; }
+.text2 { color: var(--text2); }
+
+/* ============================================================
+   PANEL / CARDS
+   ============================================================ */
+.panel {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+.panel-head {
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: space-between;
+}
+.panel-head-title { font-size: 13px; font-weight: 700; }
+.panel-body { padding: 20px; }
+
+/* ============================================================
+   MINI GAUGE / METER
+   ============================================================ */
+.meter-row { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; }
+.meter-label { font-size: 12px; color: var(--text2); width: 60px; flex-shrink: 0; }
+.meter-bar-wrap { flex: 1; height: 6px; background: var(--surface2); border-radius: 3px; overflow: hidden; }
+.meter-bar { height: 100%; border-radius: 3px; transition: width .5s ease; }
+.meter-bar.ok     { background: var(--ok); }
+.meter-bar.warn   { background: var(--warn); }
+.meter-bar.danger { background: var(--danger); }
+.meter-val { font-family: var(--font-mono); font-size: 12px; color: var(--text2); width: 36px; text-align: right; }
+
+/* ============================================================
+   MODAL
+   ============================================================ */
+.modal-overlay {
+  position: fixed; inset: 0; z-index: 200;
+  background: rgba(0,0,0,.7);
+  display: flex; align-items: center; justify-content: center;
+  backdrop-filter: blur(4px);
+  animation: fadeIn .2s ease;
+}
+.modal {
+  background: var(--surface);
+  border: 1px solid var(--border2);
+  border-radius: 14px;
+  width: 520px; max-width: 95vw;
+  max-height: 88vh;
+  overflow-y: auto;
+  padding: 28px;
+  box-shadow: 0 30px 60px rgba(0,0,0,.5);
+}
+.modal-title { font-size: 16px; font-weight: 800; margin-bottom: 4px; }
+.modal-sub   { font-size: 13px; color: var(--text2); margin-bottom: 24px; font-family: var(--font-mono); }
+
+.form-row { margin-bottom: 18px; }
+.form-label { font-size: 11px; font-weight: 600; letter-spacing: 1.2px; text-transform: uppercase; color: var(--text2); margin-bottom: 7px; }
+.form-input {
+  width: 100%;
+  background: var(--surface2);
+  border: 1px solid var(--border2);
+  border-radius: 8px;
+  color: var(--text);
+  font-family: var(--font-mono); font-size: 13px;
+  padding: 10px 14px; outline: none;
+  transition: border-color .2s;
+}
+.form-input:focus { border-color: var(--accent); }
+.form-input::placeholder { color: var(--text3); }
+
+.modal-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 24px; }
+
+/* ============================================================
+   CODE BOX
+   ============================================================ */
+.code-box {
+  background: #0d1117;
+  border: 1px solid var(--border2);
+  border-radius: 8px;
+  padding: 14px 16px;
+  font-family: var(--font-mono); font-size: 11px;
+  color: #a5f3fc;
+  overflow-x: auto;
+  white-space: pre-wrap;
+  word-break: break-all;
+  line-height: 1.7;
+  position: relative;
+}
+.copy-btn {
+  position: absolute; top: 8px; right: 8px;
+  background: var(--surface2); border: 1px solid var(--border2); border-radius: 6px;
+  color: var(--text2); font-size: 11px; font-family: var(--font-ui); font-weight: 600;
+  padding: 4px 10px; cursor: pointer;
+  transition: color .15s, border-color .15s;
+}
+.copy-btn:hover { color: var(--accent); border-color: var(--accent); }
+
+/* tabs */
+.tabs { display: flex; gap: 2px; margin-bottom: 12px; background: var(--surface2); border-radius: 8px; padding: 3px; }
+.tab {
+  padding: 6px 14px; border-radius: 6px; font-size: 12px; font-weight: 600;
+  cursor: pointer; color: var(--text2); transition: background .15s, color .15s;
+  border: none; background: none; font-family: var(--font-ui);
+}
+.tab.active { background: var(--surface); color: var(--text); box-shadow: 0 1px 3px rgba(0,0,0,.3); }
+
+/* ============================================================
+   NODE DETAIL SIDEBAR
+   ============================================================ */
+#node-detail {
+  width: 360px; flex-shrink: 0;
+  background: var(--surface);
+  border-left: 1px solid var(--border);
+  display: flex; flex-direction: column;
+  overflow-y: auto;
+}
+#node-detail.closed { display: none; }
+.detail-header {
+  padding: 18px 20px 14px;
+  border-bottom: 1px solid var(--border);
+}
+.detail-close {
+  background: none; border: none; color: var(--text2); cursor: pointer;
+  margin-left: auto; display: block; padding: 4px; border-radius: 5px;
+}
+.detail-close:hover { color: var(--text); background: var(--surface2); }
+.detail-section { padding: 16px 20px; border-bottom: 1px solid var(--border); }
+.detail-section:last-child { border-bottom: none; }
+.detail-section-title { font-size: 11px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; color: var(--text3); margin-bottom: 12px; }
+.kv-row { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; margin-bottom: 8px; }
+.kv-key  { font-size: 12px; color: var(--text2); flex-shrink: 0; }
+.kv-val  { font-size: 12px; font-family: var(--font-mono); color: var(--text); text-align: right; word-break: break-all; }
+
+/* ============================================================
+   EMPTY STATE
+   ============================================================ */
+.empty-state {
+  padding: 60px 20px;
+  text-align: center;
+  color: var(--text3);
+}
+.empty-state svg { width: 40px; height: 40px; margin: 0 auto 14px; display: block; opacity: .4; }
+.empty-state-title { font-size: 14px; font-weight: 600; color: var(--text2); margin-bottom: 6px; }
+.empty-state-sub   { font-size: 13px; }
+
+/* ============================================================
+   TOAST
+   ============================================================ */
+#toast-container {
+  position: fixed; bottom: 24px; right: 24px;
+  z-index: 500; display: flex; flex-direction: column; gap: 10px;
+}
+.toast {
+  background: var(--surface2);
+  border: 1px solid var(--border2);
+  border-radius: 10px;
+  padding: 12px 18px;
+  font-size: 13px;
+  display: flex; align-items: center; gap: 10px;
+  box-shadow: 0 8px 24px rgba(0,0,0,.4);
+  animation: slideIn .25s ease;
+  max-width: 320px;
+}
+.toast.ok     { border-color: rgba(34,197,94,.3); }
+.toast.error  { border-color: rgba(239,68,68,.3); }
+.toast-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.toast.ok .toast-dot    { background: var(--ok); }
+.toast.error .toast-dot { background: var(--danger); }
+
+@keyframes slideIn { from { opacity: 0; transform: translateX(16px); } to { opacity: 1; transform: translateX(0); } }
+
+/* ============================================================
+   LOADING SPINNER
+   ============================================================ */
+.spinner {
+  width: 16px; height: 16px;
+  border: 2px solid var(--border2);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin .6s linear infinite;
+  display: inline-block;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.page-loader {
+  display: flex; align-items: center; justify-content: center;
+  gap: 12px; padding: 60px;
+  color: var(--text2); font-size: 13px; font-family: var(--font-mono);
+}
+
+/* ============================================================
+   RESPONSIVE LAYOUT
+   ============================================================ */
+.two-col {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+  margin-bottom: 20px;
+}
+.three-col {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+@media (max-width: 1100px) { .three-col { grid-template-columns: 1fr 1fr; } }
+@media (max-width: 800px)  { .two-col, .three-col { grid-template-columns: 1fr; } }
+
+/* ============================================================
+   SITE ROW / CARD
+   ============================================================ */
+.site-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+  margin-bottom: 20px;
+}
+.site-card-head {
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; gap: 12px;
+}
+.site-icon {
+  width: 34px; height: 34px;
+  background: linear-gradient(135deg, rgba(0,229,255,.15), rgba(124,58,237,.15));
+  border: 1px solid rgba(0,229,255,.2);
+  border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+  color: var(--accent);
+  flex-shrink: 0;
+}
+.site-icon svg { width: 17px; height: 17px; }
+.site-name { font-size: 14px; font-weight: 700; }
+.site-id   { font-size: 11px; font-family: var(--font-mono); color: var(--text3); margin-top: 2px; }
+.site-nodes-count { margin-left: auto; }
+
+/* ============================================================
+   TOKEN ROW
+   ============================================================ */
+.token-row {
+  display: flex; align-items: center; gap: 12px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--border);
+}
+.token-row:last-child { border-bottom: none; }
+.token-label  { font-size: 13px; font-weight: 500; }
+.token-meta   { font-size: 11px; font-family: var(--font-mono); color: var(--text2); margin-top: 2px; }
+
+/* ============================================================
+   HEARTBEAT MINI CHART (sparkline via canvas)
+   ============================================================ */
+.sparkline { display: block; }
+
+/* ============================================================
+   PAGE TRANSITIONS
+   ============================================================ */
+.page { animation: none; }
+.page.active { animation: fadeIn .2s ease; }
+
+</style>
+</head>
+<body>
+
+<!-- ============================================================
+     LOGIN PAGE
+     ============================================================ -->
+<div id="login-page">
+  <div class="login-bg">
+    <div class="login-grid"></div>
+  </div>
+  <div class="login-card">
+    <div class="login-logo">
+      <div class="login-logo-icon">
+        <svg viewBox="0 0 20 20"><path d="M10 2L3 6v4c0 4.4 3 8.5 7 9.5C14 18.5 17 14.4 17 10V6l-7-4z"/></svg>
+      </div>
+      <div class="login-logo-text">Edge<span>Hub</span></div>
+    </div>
+    <div class="login-tagline">// edge control plane</div>
+    <div class="field-wrap">
+      <div class="field-label">Admin Key</div>
+      <input id="login-key" class="field-input" type="password" placeholder="Enter admin key…" autocomplete="current-password"/>
+    </div>
+    <button id="login-btn" class="btn-primary">Authenticate →</button>
+    <div id="login-error" class="login-error hidden"></div>
+  </div>
+</div>
+
+<!-- ============================================================
+     MAIN APP
+     ============================================================ -->
+<div id="app" class="hidden">
+
+  <!-- SIDEBAR -->
+  <aside id="sidebar">
+    <div class="sidebar-header">
+      <div class="sidebar-logo-icon">
+        <svg viewBox="0 0 20 20"><path d="M10 2L3 6v4c0 4.4 3 8.5 7 9.5C14 18.5 17 14.4 17 10V6l-7-4z"/></svg>
+      </div>
+      <div class="sidebar-title">Edge<span>Hub</span></div>
+    </div>
+
+    <div class="sidebar-section">
+      <div class="sidebar-section-label">Monitor</div>
+      <button class="nav-item active" data-page="overview" onclick="showPage('overview',this)">
+        <svg viewBox="0 0 20 20" fill="currentColor"><path d="M3 4a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1H4a1 1 0 01-1-1V4zm0 8a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1H4a1 1 0 01-1-1v-4zm8-8a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1V4zm0 8a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1v-4z"/></svg>
+        Overview
+      </button>
+      <button class="nav-item" data-page="nodes" onclick="showPage('nodes',this)">
+        <svg viewBox="0 0 20 20" fill="currentColor"><path d="M13 7H7v6h6V7z"/><path fill-rule="evenodd" d="M7 2a1 1 0 012 0v1h2V2a1 1 0 112 0v1h2a2 2 0 012 2v2h1a1 1 0 110 2h-1v2h1a1 1 0 110 2h-1v2a2 2 0 01-2 2h-2v1a1 1 0 11-2 0v-1H9v1a1 1 0 11-2 0v-1H5a2 2 0 01-2-2v-2H2a1 1 0 110-2h1V9H2a1 1 0 010-2h1V5a2 2 0 012-2h2V2z" clip-rule="evenodd"/></svg>
+        All Nodes
+      </button>
+    </div>
+
+    <div class="sidebar-section">
+      <div class="sidebar-section-label">Sites</div>
+      <button class="nav-item" data-page="sites" onclick="showPage('sites',this)">
+        <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clip-rule="evenodd"/></svg>
+        Manage Sites
+      </button>
+    </div>
+
+    <div class="sidebar-bottom">
+      <button class="nav-item" onclick="logout()">
+        <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M3 3a1 1 0 00-1 1v12a1 1 0 102 0V4a1 1 0 00-1-1zm10.293 9.293a1 1 0 001.414 1.414l3-3a1 1 0 000-1.414l-3-3a1 1 0 10-1.414 1.414L14.586 9H7a1 1 0 100 2h7.586l-1.293 1.293z" clip-rule="evenodd"/></svg>
+        Log out
+      </button>
+    </div>
+  </aside>
+
+  <!-- MAIN CONTENT -->
+  <div id="main">
+    <div class="topbar">
+      <div class="topbar-title" id="topbar-title">Overview</div>
+      <div class="topbar-right">
+        <span id="refresh-indicator" class="mono text2" style="font-size:11px"></span>
+        <div class="btn-icon" onclick="refreshCurrent()" title="Refresh">
+          <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clip-rule="evenodd"/></svg>
+        </div>
+      </div>
+    </div>
+
+    <!-- OVERVIEW PAGE -->
+    <div id="page-overview" class="page active">
+      <div class="page-body">
+        <div id="overview-stats" class="stat-grid">
+          <div class="stat-card c-accent"><div class="stat-label">Total Nodes</div><div class="stat-value" id="s-total">—</div><div class="stat-sub">across all sites</div></div>
+          <div class="stat-card c-ok"><div class="stat-label">Online</div><div class="stat-value" id="s-online">—</div><div class="stat-sub">responding</div></div>
+          <div class="stat-card c-danger"><div class="stat-label">Offline</div><div class="stat-value" id="s-offline">—</div><div class="stat-sub">not responding</div></div>
+          <div class="stat-card c-purple"><div class="stat-label">Sites</div><div class="stat-value" id="s-sites">—</div><div class="stat-sub">registered</div></div>
+        </div>
+
+        <div class="two-col">
+          <!-- Recent nodes -->
+          <div class="table-wrap">
+            <div class="table-header">
+              <span class="table-title">Recent Nodes</span>
+              <button class="btn btn-ghost" onclick="showPage('nodes', document.querySelector('[data-page=nodes]'))" style="padding:5px 10px;font-size:12px">View all</button>
+            </div>
+            <div id="overview-nodes-list">
+              <div class="page-loader"><div class="spinner"></div>Loading…</div>
+            </div>
+          </div>
+
+          <!-- Sites summary -->
+          <div class="table-wrap">
+            <div class="table-header">
+              <span class="table-title">Sites</span>
+              <button class="btn btn-ghost" onclick="showPage('sites', document.querySelector('[data-page=sites]'))" style="padding:5px 10px;font-size:12px">Manage</button>
+            </div>
+            <div id="overview-sites-list">
+              <div class="page-loader"><div class="spinner"></div>Loading…</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- NODES PAGE -->
+    <div id="page-nodes" class="page">
+      <div class="topbar" style="border-top:1px solid var(--border); height:auto; padding:12px 24px; flex-shrink:0;">
+        <input id="nodes-search" class="table-search" placeholder="Search hostname, site, OS…" oninput="filterNodes()" style="width:260px"/>
+        <div style="display:flex;gap:8px;margin-left:auto">
+          <select id="nodes-status-filter" class="table-search" style="width:auto" onchange="filterNodes()">
+            <option value="">All Status</option>
+            <option value="online">Online</option>
+            <option value="offline">Offline</option>
+          </select>
+        </div>
+      </div>
+      <div class="page-body" style="padding-top:16px; display:flex; gap:0; padding:0; flex:1; overflow:hidden;">
+        <div style="flex:1; overflow-y:auto; padding:20px 24px;" id="nodes-table-wrap">
+          <div class="table-wrap">
+            <div class="table-header">
+              <span class="table-title">All Nodes</span>
+              <span id="nodes-count" class="mono text2" style="font-size:12px"></span>
+            </div>
+            <div id="nodes-table-body">
+              <div class="page-loader"><div class="spinner"></div>Loading nodes…</div>
+            </div>
+          </div>
+        </div>
+        <div id="node-detail" class="closed">
+          <!-- filled by JS -->
+        </div>
+      </div>
+    </div>
+
+    <!-- SITES PAGE -->
+    <div id="page-sites" class="page">
+      <div class="topbar" style="border-top:1px solid var(--border); height:auto; padding:12px 24px; flex-shrink:0; justify-content:flex-end;">
+        <button class="btn btn-accent" onclick="openCreateSite()">
+          <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd"/></svg>
+          New Site
+        </button>
+      </div>
+      <div class="page-body">
+        <div id="sites-list">
+          <div class="page-loader"><div class="spinner"></div>Loading sites…</div>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /main -->
+</div><!-- /app -->
+
+<!-- ============================================================
+     MODALS
+     ============================================================ -->
+
+<!-- Create Site Modal -->
+<div id="modal-create-site" class="modal-overlay hidden" onclick="if(event.target===this)this.classList.add('hidden')">
+  <div class="modal">
+    <div class="modal-title">New Site</div>
+    <div class="modal-sub">// register_site()</div>
+    <div class="form-row">
+      <div class="form-label">Site Name</div>
+      <input id="cs-name" class="form-input" placeholder="e.g. Factory Floor A"/>
+    </div>
+    <div class="form-row">
+      <div class="form-label">Description <span style="color:var(--text3)">(optional)</span></div>
+      <input id="cs-desc" class="form-input" placeholder="Brief description…"/>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="document.getElementById('modal-create-site').classList.add('hidden')">Cancel</button>
+      <button class="btn btn-accent" onclick="createSite()">Create Site</button>
+    </div>
+  </div>
+</div>
+
+<!-- Create Token Modal -->
+<div id="modal-create-token" class="modal-overlay hidden" onclick="if(event.target===this)this.classList.add('hidden')">
+  <div class="modal">
+    <div class="modal-title">Generate Registration Token</div>
+    <div class="modal-sub" id="ctoken-site-sub">// site: —</div>
+    <div class="form-row">
+      <div class="form-label">Label</div>
+      <input id="ct-label" class="form-input" placeholder="e.g. edge-device-01"/>
+    </div>
+    <div class="form-row">
+      <div class="form-label">Expires In (hours)</div>
+      <input id="ct-expires" class="form-input" type="number" value="24" min="1" max="8760"/>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="document.getElementById('modal-create-token').classList.add('hidden')">Cancel</button>
+      <button class="btn btn-accent" onclick="createToken()">Generate Token</button>
+    </div>
+  </div>
+</div>
+
+<!-- Token Created Modal -->
+<div id="modal-token-result" class="modal-overlay hidden" onclick="if(event.target===this)this.classList.add('hidden')">
+  <div class="modal">
+    <div class="modal-title">Token Generated ✓</div>
+    <div class="modal-sub">// Copy commands — token shown only once</div>
+
+    <div style="margin-bottom:20px">
+      <div class="form-label" style="margin-bottom:8px">Raw Token</div>
+      <div class="code-box" id="tr-raw-token" style="position:relative">
+        <button class="copy-btn" onclick="copyText('tr-raw-token-val')">Copy</button>
+        <span id="tr-raw-token-val"></span>
+      </div>
+    </div>
+
+    <div class="form-label" style="margin-bottom:8px">Install Command</div>
+    <div class="tabs" id="cmd-tabs">
+      <button class="tab active" onclick="switchCmdTab('linux',this)">Linux</button>
+      <button class="tab" onclick="switchCmdTab('docker',this)">Docker</button>
+      <button class="tab" onclick="switchCmdTab('kubernetes',this)">Kubernetes</button>
+    </div>
+    <div class="code-box" id="tr-cmd" style="position:relative">
+      <button class="copy-btn" onclick="copyText('tr-cmd-text')">Copy</button>
+      <span id="tr-cmd-text"></span>
+    </div>
+
+    <div class="modal-actions">
+      <button class="btn btn-accent" onclick="document.getElementById('modal-token-result').classList.add('hidden')">Done</button>
+    </div>
+  </div>
+</div>
+
+<!-- Delete Confirm Modal -->
+<div id="modal-confirm-delete" class="modal-overlay hidden" onclick="if(event.target===this)this.classList.add('hidden')">
+  <div class="modal" style="max-width:380px">
+    <div class="modal-title">Confirm Delete</div>
+    <div class="modal-sub" id="delete-confirm-msg">Are you sure?</div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="document.getElementById('modal-confirm-delete').classList.add('hidden')">Cancel</button>
+      <button class="btn btn-danger-ghost" id="delete-confirm-btn">Delete</button>
+    </div>
+  </div>
+</div>
+
+<!-- TOAST CONTAINER -->
+<div id="toast-container"></div>
+
+<!-- ============================================================
+     JAVASCRIPT
+     ============================================================ -->
+<script>
+// ================================================================
+//  STATE
+// ================================================================
+const state = {
+  allNodes: [],
+  allSites: [],
+  currentPage: 'overview',
+  selectedNodeId: null,
+  tokenSiteId: null,
+  tokenCommands: null,
+};
+
+// ================================================================
+//  API HELPER
+// ================================================================
+async function api(method, path, body) {
+  const opts = {
+    method,
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+  };
+  if (body) opts.body = JSON.stringify(body);
+  const r = await fetch('/api/v1' + path, opts);
+  if (r.status === 401) {
+    showLogin();
+    throw new Error('Unauthorized');
+  }
+  if (!r.ok) {
+    const e = await r.json().catch(() => ({}));
+    throw new Error(e.detail || r.statusText);
+  }
+  if (r.status === 204) return null;
+  return r.json();
+}
+
+// ================================================================
+//  AUTH
+// ================================================================
+document.getElementById('login-key').addEventListener('keydown', e => {
+  if (e.key === 'Enter') doLogin();
+});
+document.getElementById('login-btn').addEventListener('click', doLogin);
+
+async function doLogin() {
+  const key = document.getElementById('login-key').value.trim();
+  if (!key) return;
+  const btn = document.getElementById('login-btn');
+  const err = document.getElementById('login-error');
+  btn.disabled = true;
+  btn.textContent = 'Authenticating…';
+  err.classList.add('hidden');
+  try {
+    await api('POST', '/auth/login', { admin_key: key });
+    showApp();
+  } catch (e) {
+    err.textContent = '⚠ ' + (e.message || 'Authentication failed');
+    err.classList.remove('hidden');
+    btn.disabled = false;
+    btn.textContent = 'Authenticate →';
+  }
+}
+
+async function logout() {
+  await api('POST', '/auth/logout').catch(() => {});
+  showLogin();
+}
+
+function showLogin() {
+  document.getElementById('app').classList.add('hidden');
+  document.getElementById('login-page').classList.remove('hidden');
+  document.getElementById('login-key').value = '';
+  document.getElementById('login-btn').disabled = false;
+  document.getElementById('login-btn').textContent = 'Authenticate →';
+}
+
+async function showApp() {
+  document.getElementById('login-page').classList.add('hidden');
+  document.getElementById('app').classList.remove('hidden');
+  await loadOverview();
+}
+
+// ================================================================
+//  NAVIGATION
+// ================================================================
+const pageTitles = { overview: 'Overview', nodes: 'All Nodes', sites: 'Manage Sites' };
+
+function showPage(name, btn) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById('page-' + name).classList.add('active');
+  if (btn) btn.classList.add('active');
+  document.getElementById('topbar-title').textContent = pageTitles[name] || name;
+  state.currentPage = name;
+  if (name === 'overview') loadOverview();
+  if (name === 'nodes')    loadNodes();
+  if (name === 'sites')    loadSites();
+}
+
+function refreshCurrent() {
+  const ri = document.getElementById('refresh-indicator');
+  ri.textContent = 'refreshing…';
+  if (state.currentPage === 'overview') loadOverview().then(() => ri.textContent = '');
+  if (state.currentPage === 'nodes')    loadNodes().then(() => ri.textContent = '');
+  if (state.currentPage === 'sites')    loadSites().then(() => ri.textContent = '');
+}
+
+// ================================================================
+//  OVERVIEW
+// ================================================================
+async function loadOverview() {
+  const [nodes, sites] = await Promise.all([
+    api('GET', '/nodes/').catch(() => []),
+    api('GET', '/sites/').catch(() => []),
+  ]);
+  state.allNodes = nodes || [];
+  state.allSites = sites || [];
+
+  const online  = state.allNodes.filter(n => n.status === 'online').length;
+  const offline = state.allNodes.length - online;
+
+  document.getElementById('s-total').textContent  = state.allNodes.length;
+  document.getElementById('s-online').textContent  = online;
+  document.getElementById('s-offline').textContent = offline;
+  document.getElementById('s-sites').textContent   = state.allSites.length;
+
+  // Recent nodes (top 8)
+  const recentNodes = [...state.allNodes].slice(0, 8);
+  const nl = document.getElementById('overview-nodes-list');
+  if (!recentNodes.length) {
+    nl.innerHTML = emptyState('No nodes registered yet', 'Deploy an agent to see nodes here');
+    return;
+  }
+  nl.innerHTML = `<table><thead><tr>
+    <th>Status</th><th>Hostname</th><th>OS</th><th>Last Seen</th>
+  </tr></thead><tbody>` +
+    recentNodes.map(n => `<tr onclick="openNodeDetail('${n.id}')" style="cursor:pointer">
+      <td>${statusDot(n.status)}</td>
+      <td class="mono">${esc(n.hostname)}</td>
+      <td><span class="badge badge-gray">${esc(n.os||'—')}</span></td>
+      <td class="mono text2">${relTime(n.last_seen)}</td>
+    </tr>`).join('') + '</tbody></table>';
+
+  // Sites summary
+  const sl = document.getElementById('overview-sites-list');
+  if (!state.allSites.length) {
+    sl.innerHTML = emptyState('No sites yet', 'Create a site to get started');
+    return;
+  }
+  sl.innerHTML = `<table><thead><tr>
+    <th>Site</th><th>ID</th><th>Nodes</th>
+  </tr></thead><tbody>` +
+    state.allSites.map(s => {
+      const count = state.allNodes.filter(n => n.site_id === s.id).length;
+      return `<tr>
+        <td style="font-weight:600">${esc(s.name)}</td>
+        <td><span class="mono text2">${esc(s.id)}</span></td>
+        <td><span class="badge badge-info">${count}</span></td>
+      </tr>`;
+    }).join('') + '</tbody></table>';
+}
+
+// ================================================================
+//  NODES
+// ================================================================
+async function loadNodes() {
+  const nodes = await api('GET', '/nodes/').catch(() => []);
+  state.allNodes = nodes || [];
+  renderNodesTable(state.allNodes);
+}
+
+function renderNodesTable(nodes) {
+  const wrap = document.getElementById('nodes-table-body');
+  document.getElementById('nodes-count').textContent = nodes.length + ' node' + (nodes.length !== 1 ? 's' : '');
+
+  if (!nodes.length) {
+    wrap.innerHTML = emptyState('No nodes match your filter', 'Try adjusting the search or status filter');
+    return;
+  }
+
+  wrap.innerHTML = `<table><thead><tr>
+    <th></th>
+    <th>Hostname</th>
+    <th>Site</th>
+    <th>Type</th>
+    <th>OS / Arch</th>
+    <th>Version</th>
+    <th>Last Seen</th>
+    <th></th>
+  </tr></thead><tbody>` +
+    nodes.map(n => `<tr style="cursor:pointer" onclick="openNodeDetail('${n.id}')">
+      <td>${statusDot(n.status)}</td>
+      <td class="mono" style="font-weight:600">${esc(n.hostname)}</td>
+      <td><span class="mono text2" style="font-size:11px">${esc(n.site_id||'—')}</span></td>
+      <td><span class="badge badge-gray">${esc(n.agent_type||'—')}</span></td>
+      <td class="mono text2">${esc(n.os||'—')} / ${esc(n.arch||'—')}</td>
+      <td class="mono text2">${esc(n.agent_version||'—')}</td>
+      <td class="mono text2">${relTime(n.last_seen)}</td>
+      <td onclick="event.stopPropagation()">
+        <button class="btn btn-danger-ghost" style="padding:4px 10px;font-size:11px" onclick="confirmDeleteNode('${n.id}','${esc(n.hostname)}')">Del</button>
+      </td>
+    </tr>`).join('') + '</tbody></table>';
+}
+
+function filterNodes() {
+  const q     = document.getElementById('nodes-search').value.toLowerCase();
+  const st    = document.getElementById('nodes-status-filter').value;
+  let filtered = state.allNodes.filter(n => {
+    const matchQ  = !q || [n.hostname, n.site_id, n.os, n.arch, n.agent_type, n.agent_version]
+                          .some(v => (v||'').toLowerCase().includes(q));
+    const matchSt = !st || n.status === st;
+    return matchQ && matchSt;
+  });
+  renderNodesTable(filtered);
+}
+
+async function openNodeDetail(nodeId) {
+  state.selectedNodeId = nodeId;
+  const panel = document.getElementById('node-detail');
+  panel.classList.remove('closed');
+  panel.innerHTML = `<div class="page-loader"><div class="spinner"></div>Loading…</div>`;
+
+  const [node, hbs] = await Promise.all([
+    api('GET', '/nodes/' + nodeId).catch(() => null),
+    api('GET', '/nodes/' + nodeId + '/heartbeats?limit=20').catch(() => []),
+  ]);
+
+  if (!node) { panel.innerHTML = '<div class="page-loader" style="color:var(--danger)">Failed to load node</div>'; return; }
+
+  const lastHb = hbs && hbs[0];
+  const cpuColor  = barColor(lastHb?.cpu_usage);
+  const memColor  = barColor(lastHb?.memory_usage);
+  const diskColor = barColor(lastHb?.disk_usage);
+
+  panel.innerHTML = `
+  <div class="detail-header">
+    <div style="display:flex;align-items:center;gap:8px">
+      ${statusDot(node.status)}
+      <div style="font-size:14px;font-weight:700;font-family:var(--font-mono)">${esc(node.hostname)}</div>
+    </div>
+    <button class="detail-close" onclick="closeNodeDetail()">
+      <svg width="16" height="16" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"/></svg>
+    </button>
+  </div>
+
+  <div class="detail-section">
+    <div class="detail-section-title">Identity</div>
+    ${kv('Node ID', node.id)}
+    ${kv('Site', node.site_id)}
+    ${kv('Type', node.agent_type)}
+    ${kv('OS', node.os)}
+    ${kv('Arch', node.arch)}
+    ${kv('Version', node.agent_version)}
+    ${kv('IP', lastHb?.ip_address || '—')}
+  </div>
+
+  ${lastHb ? `
+  <div class="detail-section">
+    <div class="detail-section-title">Resources (latest)</div>
+    <div class="meter-row"><div class="meter-label">CPU</div><div class="meter-bar-wrap"><div class="meter-bar ${cpuColor}" style="width:${lastHb.cpu_usage||0}%"></div></div><div class="meter-val">${fmt(lastHb.cpu_usage)}%</div></div>
+    <div class="meter-row"><div class="meter-label">RAM</div><div class="meter-bar-wrap"><div class="meter-bar ${memColor}" style="width:${lastHb.memory_usage||0}%"></div></div><div class="meter-val">${fmt(lastHb.memory_usage)}%</div></div>
+    <div class="meter-row"><div class="meter-label">Disk</div><div class="meter-bar-wrap"><div class="meter-bar ${diskColor}" style="width:${lastHb.disk_usage||0}%"></div></div><div class="meter-val">${fmt(lastHb.disk_usage)}%</div></div>
+    ${lastHb.container_count != null ? kv('Containers', lastHb.container_count) : ''}
+    ${lastHb.pod_count != null ? kv('Pods', lastHb.pod_count) : ''}
+    ${kv('Uptime', formatUptime(lastHb.uptime_seconds))}
+  </div>` : ''}
+
+  <div class="detail-section">
+    <div class="detail-section-title">Timeline</div>
+    ${kv('Last Seen', relTime(node.last_seen))}
+    ${kv('Created', relTime(node.created_at))}
+    ${kv('Heartbeats', (hbs||[]).length + ' stored')}
+  </div>
+
+  <div class="detail-section" style="border-bottom:none">
+    <button class="btn btn-danger-ghost" style="width:100%" onclick="confirmDeleteNode('${node.id}','${esc(node.hostname)}')">
+      <svg viewBox="0 0 20 20" fill="currentColor" width="14" height="14"><path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd"/></svg>
+      Delete Node
+    </button>
+  </div>
+  `;
+}
+
+function closeNodeDetail() {
+  document.getElementById('node-detail').classList.add('closed');
+  state.selectedNodeId = null;
+}
+
+// ================================================================
+//  SITES
+// ================================================================
+async function loadSites() {
+  const sites = await api('GET', '/sites/').catch(() => []);
+  state.allSites = sites || [];
+
+  const container = document.getElementById('sites-list');
+  if (!sites.length) {
+    container.innerHTML = emptyState('No sites yet', 'Create a site to start deploying agents');
+    return;
+  }
+
+  container.innerHTML = '';
+  for (const site of sites) {
+    const [nodes, tokens] = await Promise.all([
+      api('GET', '/sites/' + site.id + '/nodes').catch(() => []),
+      api('GET', '/sites/' + site.id + '/tokens').catch(() => []),
+    ]);
+    container.appendChild(renderSiteCard(site, nodes||[], tokens||[]));
+  }
+}
+
+function renderSiteCard(site, nodes, tokens) {
+  const online  = nodes.filter(n => n.status === 'online').length;
+  const offline = nodes.length - online;
+  const validTokens = tokens.filter(t => t.is_valid).length;
+
+  const el = document.createElement('div');
+  el.className = 'site-card';
+  el.innerHTML = `
+    <div class="site-card-head">
+      <div class="site-icon">
+        <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clip-rule="evenodd"/></svg>
+      </div>
+      <div>
+        <div class="site-name">${esc(site.name)}</div>
+        <div class="site-id">${esc(site.id)}</div>
+      </div>
+      ${site.description ? `<div style="font-size:12px;color:var(--text2);margin-left:8px;margin-right:auto">${esc(site.description)}</div>` : '<div style="flex:1"></div>'}
+      <div style="display:flex;gap:8px;align-items:center">
+        <button class="btn btn-accent" style="padding:6px 12px;font-size:12px" onclick="openCreateToken('${site.id}', '${esc(site.name)}')">
+          <svg viewBox="0 0 20 20" fill="currentColor" width="13" height="13"><path fill-rule="evenodd" d="M18 8a6 6 0 01-7.743 5.743L10 14l-1 1-1 1H6v2H2v-4l4.257-4.257A6 6 0 1118 8zm-6-4a1 1 0 100 2 2 2 0 012 2 1 1 0 102 0 4 4 0 00-4-4z" clip-rule="evenodd"/></svg>
+          New Token
+        </button>
+        <button class="btn btn-danger-ghost" style="padding:6px 12px;font-size:12px" onclick="confirmDeleteSite('${site.id}','${esc(site.name)}')">Delete</button>
+      </div>
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:0;border-bottom:1px solid var(--border)">
+      <div style="padding:16px 20px;border-right:1px solid var(--border)">
+        <div class="detail-section-title" style="margin-bottom:10px">Nodes</div>
+        <div style="display:flex;gap:10px;align-items:center">
+          <span class="badge badge-ok">${online} online</span>
+          ${offline ? `<span class="badge badge-danger">${offline} offline</span>` : ''}
+          ${!nodes.length ? '<span class="mono text2" style="font-size:12px">No nodes yet</span>' : ''}
+        </div>
+        ${nodes.length ? `
+        <div style="margin-top:12px">
+          ${nodes.slice(0,5).map(n => `
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;cursor:pointer" onclick="showPage('nodes', document.querySelector('[data-page=nodes]'));setTimeout(()=>openNodeDetail('${n.id}'),300)">
+              ${statusDot(n.status)}
+              <span class="mono" style="font-size:12px">${esc(n.hostname)}</span>
+              <span class="badge badge-gray" style="margin-left:auto">${esc(n.os||'—')}</span>
+            </div>`).join('')}
+          ${nodes.length > 5 ? `<div style="font-size:12px;color:var(--text3);margin-top:4px">+${nodes.length-5} more</div>` : ''}
+        </div>` : ''}
+      </div>
+      <div style="padding:16px 20px">
+        <div class="detail-section-title" style="margin-bottom:10px">Registration Tokens</div>
+        ${!tokens.length ? '<div class="mono text2" style="font-size:12px">No tokens yet</div>' : ''}
+        ${tokens.slice(0,4).map(t => `
+          <div class="token-row">
+            <div style="flex:1;min-width:0">
+              <div class="token-label">${esc(t.label||'Unnamed')}</div>
+              <div class="token-meta">${t.used ? '✓ used' : 'expires ' + relTime(t.expires_at)}</div>
+            </div>
+            <span class="badge ${t.is_valid ? 'badge-ok' : (t.used ? 'badge-gray' : 'badge-danger')}">${t.is_valid ? 'valid' : (t.used ? 'used' : 'expired')}</span>
+          </div>`).join('')}
+        ${tokens.length > 4 ? `<div style="font-size:12px;color:var(--text3);margin-top:4px">+${tokens.length-4} more tokens</div>` : ''}
+      </div>
+    </div>
+  `;
+  return el;
+}
+
+// ================================================================
+//  CREATE SITE
+// ================================================================
+function openCreateSite() {
+  document.getElementById('cs-name').value = '';
+  document.getElementById('cs-desc').value = '';
+  document.getElementById('modal-create-site').classList.remove('hidden');
+  setTimeout(() => document.getElementById('cs-name').focus(), 50);
+}
+
+async function createSite() {
+  const name = document.getElementById('cs-name').value.trim();
+  const desc = document.getElementById('cs-desc').value.trim();
+  if (!name) return;
+  try {
+    await api('POST', '/sites/', { name, description: desc || null });
+    document.getElementById('modal-create-site').classList.add('hidden');
+    toast('Site created', 'ok');
+    loadSites();
+  } catch (e) {
+    toast(e.message, 'error');
+  }
+}
+
+// ================================================================
+//  CREATE TOKEN
+// ================================================================
+function openCreateToken(siteId, siteName) {
+  state.tokenSiteId = siteId;
+  document.getElementById('ctoken-site-sub').textContent = `// site: ${siteName}`;
+  document.getElementById('ct-label').value = '';
+  document.getElementById('ct-expires').value = '24';
+  document.getElementById('modal-create-token').classList.remove('hidden');
+  setTimeout(() => document.getElementById('ct-label').focus(), 50);
+}
+
+async function createToken() {
+  const label     = document.getElementById('ct-label').value.trim();
+  const expires   = parseInt(document.getElementById('ct-expires').value) || 24;
+  try {
+    const result = await api('POST', `/sites/${state.tokenSiteId}/tokens`, {
+      label: label || null,
+      expires_in_hours: expires,
+    });
+    state.tokenCommands = result.commands;
+    document.getElementById('modal-create-token').classList.add('hidden');
+    document.getElementById('tr-raw-token-val').textContent = result.raw_token;
+    switchCmdTab('linux', document.querySelector('#cmd-tabs .tab'));
+    // set linux cmd
+    document.getElementById('tr-cmd-text').textContent = result.commands.linux;
+    document.getElementById('modal-token-result').classList.remove('hidden');
+    toast('Token generated', 'ok');
+    loadSites();
+  } catch (e) {
+    toast(e.message, 'error');
+  }
+}
+
+function switchCmdTab(type, btn) {
+  document.querySelectorAll('#cmd-tabs .tab').forEach(t => t.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+  if (state.tokenCommands) {
+    document.getElementById('tr-cmd-text').textContent = state.tokenCommands[type] || '';
+  }
+}
+
+// ================================================================
+//  DELETE
+// ================================================================
+function confirmDeleteSite(id, name) {
+  document.getElementById('delete-confirm-msg').textContent = `Delete site "${name}"? All associated data will be removed.`;
+  const btn = document.getElementById('delete-confirm-btn');
+  btn.onclick = async () => {
+    try {
+      await api('DELETE', '/sites/' + id);
+      document.getElementById('modal-confirm-delete').classList.add('hidden');
+      toast('Site deleted', 'ok');
+      loadSites();
+    } catch (e) { toast(e.message, 'error'); }
+  };
+  document.getElementById('modal-confirm-delete').classList.remove('hidden');
+}
+
+function confirmDeleteNode(id, hostname) {
+  document.getElementById('delete-confirm-msg').textContent = `Delete node "${hostname}"? This action cannot be undone.`;
+  const btn = document.getElementById('delete-confirm-btn');
+  btn.onclick = async () => {
+    try {
+      await api('DELETE', '/nodes/' + id);
+      document.getElementById('modal-confirm-delete').classList.add('hidden');
+      closeNodeDetail();
+      toast('Node deleted', 'ok');
+      loadNodes();
+    } catch (e) { toast(e.message, 'error'); }
+  };
+  document.getElementById('modal-confirm-delete').classList.remove('hidden');
+}
+
+// ================================================================
+//  UTILS
+// ================================================================
+function esc(s) {
+  return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function statusDot(status) {
+  if (status === 'online') return '<span class="online-dot"></span>';
+  return '<span class="offline-dot"></span>';
+}
+
+function relTime(iso) {
+  if (!iso) return '—';
+  const diff = Date.now() - new Date(iso).getTime();
+  const s = Math.floor(diff / 1000);
+  if (s < 10)  return 'just now';
+  if (s < 60)  return s + 's ago';
+  const m = Math.floor(s / 60);
+  if (m < 60)  return m + 'm ago';
+  const h = Math.floor(m / 60);
+  if (h < 24)  return h + 'h ago';
+  return Math.floor(h / 24) + 'd ago';
+}
+
+function fmt(v) {
+  if (v == null) return '—';
+  return parseFloat(v).toFixed(1);
+}
+
+function formatUptime(s) {
+  if (s == null) return '—';
+  const d = Math.floor(s / 86400);
+  const h = Math.floor((s % 86400) / 3600);
+  const m = Math.floor((s % 3600) / 60);
+  if (d > 0) return `${d}d ${h}h`;
+  if (h > 0) return `${h}h ${m}m`;
+  return `${m}m`;
+}
+
+function barColor(v) {
+  if (v == null) return 'ok';
+  if (v > 85) return 'danger';
+  if (v > 65) return 'warn';
+  return 'ok';
+}
+
+function kv(key, val) {
+  return `<div class="kv-row"><div class="kv-key">${key}</div><div class="kv-val">${esc(val)}</div></div>`;
+}
+
+function emptyState(title, sub) {
+  return `<div class="empty-state">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+      <path stroke-linecap="round" stroke-linejoin="round" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"/>
+    </svg>
+    <div class="empty-state-title">${title}</div>
+    <div class="empty-state-sub">${sub}</div>
+  </div>`;
+}
+
+function toast(msg, type = 'ok') {
+  const c = document.getElementById('toast-container');
+  const el = document.createElement('div');
+  el.className = `toast ${type}`;
+  el.innerHTML = `<div class="toast-dot"></div><span>${esc(msg)}</span>`;
+  c.appendChild(el);
+  setTimeout(() => el.remove(), 3500);
+}
+
+function copyText(id) {
+  const el = document.getElementById(id);
+  navigator.clipboard.writeText(el.textContent).then(() => toast('Copied to clipboard', 'ok'));
+}
+
+// ================================================================
+//  BOOT — check if already logged in
+// ================================================================
+(async () => {
+  try {
+    await api('GET', '/nodes/');
+    showApp();
+  } catch {
+    // stays on login
+  }
+})();
+</script>
+</body>
+</html>
