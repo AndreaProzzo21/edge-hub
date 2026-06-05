@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>EdgeHub — Dashboard</title>
+<link rel="stylesheet" href="css/app.css">
+<style>
+  .chart-bar-wrap{display:flex;align-items:flex-end;gap:3px;height:48px;margin-top:8px}
+  .chart-bar{flex:1;background:var(--green-200);border-radius:3px 3px 0 0;min-height:4px;transition:background .1s}
+  .chart-bar.active{background:var(--accent)}
+  .chart-bar:hover{background:var(--green-600)}
+  .activity-row{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--gray-100)}
+  .activity-row:last-child{border-bottom:none}
+  .activity-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+  .activity-dot.ok{background:var(--ok)}
+  .activity-dot.warn{background:var(--warn)}
+  .activity-dot.danger{background:var(--danger)}
+  .activity-msg{flex:1;font-size:12.5px;color:var(--gray-700)}
+  .activity-time{font-size:11px;color:var(--gray-400);font-family:var(--mono);white-space:nowrap}
+  .site-row{display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--gray-100)}
+  .site-row:last-child{border-bottom:none}
+  .site-row-name{flex:1;font-size:13px;font-weight:500;color:var(--gray-900)}
+  .site-row-meta{font-size:12px;color:var(--gray-500)}
+  .online-ring{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--ok);animation:pulse-ring 2s ease infinite;flex-shrink:0}
+</style>
+</head>
+<body>
+<div class="shell">
+  <div id="sidebar-mount"></div>
+  <div class="main">
+    <div class="topbar">
+      <span class="topbar-title">Dashboard</span>
+      <div class="topbar-gap"></div>
+      <span id="last-refresh" class="muted" style="font-size:12px;font-family:var(--mono)"></span>
+      <button class="btn btn-secondary btn-sm" onclick="loadAll()">
+        <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clip-rule="evenodd"/></svg>
+        Refresh
+      </button>
+    </div>
+
+    <div class="page-body page-enter">
+      <div class="stat-grid" id="stat-grid">
+        <div class="stat-card"><div class="stat-label">Total Nodes</div><div class="stat-value" id="s-total">—</div><div class="stat-sub">across all sites</div></div>
+        <div class="stat-card"><div class="stat-label">Online</div><div class="stat-value c-green" id="s-online">—</div><div class="stat-sub">reporting in</div></div>
+        <div class="stat-card"><div class="stat-label">Offline</div><div class="stat-value c-red" id="s-offline">—</div><div class="stat-sub">no heartbeat</div></div>
+        <div class="stat-card"><div class="stat-label">Sites</div><div class="stat-value" id="s-sites">—</div><div class="stat-sub">registered</div></div>
+      </div>
+
+      <div class="grid-2">
+        <div class="card">
+          <div class="card-header">
+            <div>
+              <div class="card-title">Node Fleet</div>
+              <div class="card-subtitle">Latest heartbeat activity</div>
+            </div>
+            <div class="card-actions">
+              <a href="nodes.html" class="btn btn-secondary btn-sm">View all</a>
+            </div>
+          </div>
+          <div class="card-body" id="fleet-body" style="padding:0">
+            <div class="loader-row"><div class="spinner"></div> Loading…</div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <div>
+              <div class="card-title">Sites</div>
+              <div class="card-subtitle">Node distribution</div>
+            </div>
+            <div class="card-actions">
+              <a href="sites.html" class="btn btn-secondary btn-sm">Manage</a>
+            </div>
+          </div>
+          <div class="card-body" id="sites-body">
+            <div class="loader-row"><div class="spinner"></div> Loading…</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="section" style="margin-top:20px">
+        <div class="section-header">
+          <span class="section-title">Resource Usage Overview</span>
+          <div class="section-actions">
+            <span id="res-count" class="muted" style="font-size:12px"></span>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-body" id="resource-body">
+            <div class="loader-row"><div class="spinner"></div> Loading…</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="modal-node-detail" class="modal-backdrop hidden">
+  <div class="modal modal-wide">
+    <div class="modal-header">
+      <div class="modal-title" id="nd-title">Node Details</div>
+      <div class="modal-desc" id="nd-subtitle">Loading...</div>
+    </div>
+    <div class="modal-body" id="nd-body" style="max-height:65vh;overflow-y:auto;padding-right:10px">
+        <div class="loader-row"><div class="spinner"></div> Fetching telemetry...</div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('modal-node-detail')">Close</button>
+    </div>
+  </div>
+</div>
+
+<script src="js/api.js"></script>
+<script>
+document.getElementById('sidebar-mount').innerHTML = SIDEBAR_HTML;
+
+async function loadAll() {
+  if (!(await requireAuth())) return;
+  document.getElementById('last-refresh').textContent = 'Refreshed ' + new Date().toLocaleTimeString('en-GB');
+  const [nodes, sites] = await Promise.all([Nodes.list(), Sites.list()]);
+
+  const online = nodes.filter(n => n.status === 'online');
+  const offline = nodes.filter(n => n.status !== 'online');
+  document.getElementById('s-total').textContent = nodes.length;
+  document.getElementById('s-online').textContent = online.length;
+  document.getElementById('s-offline').textContent = offline.length;
+  document.getElementById('s-sites').textContent = sites.length;
+
+  const recent = [...nodes].slice(0, 8);
+  // MODIFICATO: onClick chiama showNodeDetail invece di fare location.href
+  document.getElementById('fleet-body').innerHTML = recent.length ? `
+    <div class="table-wrap"><table>
+      <thead><tr>
+        <th>Node</th><th>Status</th><th>Site</th><th>Last Seen</th>
+      </tr></thead>
+      <tbody>${recent.map(n => `
+        <tr class="clickable" onclick="showNodeDetail('${n.id}', '${esc(n.hostname||n.id)}')">
+          <td class="td-primary">${esc(n.hostname||n.id)}</td>
+          <td>${statusBadge(n.status)}</td>
+          <td><span class="mono">${esc(n.site_id||'—')}</span></td>
+          <td class="muted mono">${relTime(n.last_seen)}</td>
+        </tr>`).join('')}
+      </tbody>
+    </table></div>` : emptyState('No nodes', 'Register your first node to get started');
+
+  const siteNodeMap = {};
+  nodes.forEach(n => { siteNodeMap[n.site_id] = (siteNodeMap[n.site_id]||0) + 1; });
+  document.getElementById('sites-body').innerHTML = sites.length ? sites.map(s => {
+    const cnt = siteNodeMap[s.id] || 0;
+    const onl = nodes.filter(n => n.site_id === s.id && n.status === 'online').length;
+    return `<div class="site-row">
+      <div class="site-row-name"><a href="site-detail.html?id=${s.id}" style="color:var(--accent)">${esc(s.name)}</a></div>
+      <div class="site-row-meta">${cnt} node${cnt!==1?'s':''} &nbsp;·&nbsp; ${onl} online</div>
+      <div class="prog" style="width:80px"><div class="prog-bar ${barCls(cnt?onl/cnt*100:0)}" style="width:${cnt?Math.round(onl/cnt*100):0}%"></div></div>
+    </div>`;
+  }).join('') : emptyState('No sites', 'Create a site first');
+
+  const withMetrics = online.filter(n => n.cpu_usage != null || n.mem_usage != null);
+  document.getElementById('res-count').textContent = withMetrics.length + ' node' + (withMetrics.length!==1?'s':'') + ' reporting metrics';
+  
+  if (!withMetrics.length) {
+    document.getElementById('resource-body').innerHTML = emptyState('No metrics', 'Online nodes will report CPU & memory usage');
+    return;
+  }
+
+  const siteMetrics = {};
+  withMetrics.forEach(n => {
+    const sid = n.site_id || 'unknown';
+    if (!siteMetrics[sid]) siteMetrics[sid] = { cpuSum: 0, memSum: 0, count: 0, name: sid };
+    siteMetrics[sid].cpuSum += parseFloat(n.cpu_usage || 0);
+    siteMetrics[sid].memSum += parseFloat(n.mem_usage || 0);
+    siteMetrics[sid].count++;
+  });
+
+  sites.forEach(s => { if (siteMetrics[s.id]) siteMetrics[s.id].name = s.name; });
+  const aggregatedSites = Object.values(siteMetrics).sort((a,b) => b.count - a.count);
+  const topCpuNodes = [...withMetrics].sort((a, b) => (parseFloat(b.cpu_usage) || 0) - (parseFloat(a.cpu_usage) || 0)).slice(0, 3);
+
+  let resHtml = `<div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(300px, 1fr));gap:32px">`;
+  
+  resHtml += `<div>
+    <div style="font-size:11.5px;font-weight:600;color:var(--gray-500);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:14px">Averages by Site</div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px">
+      ${aggregatedSites.map(s => `
+        <div style="padding:14px;background:var(--gray-50);border:1px solid var(--gray-200);border-radius:var(--radius-lg)">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+            <a href="site-detail.html?id=${s.name === s.name ? sites.find(x => x.name === s.name)?.id : s.name}" style="font-size:13.5px;font-weight:600;color:var(--gray-900);text-decoration:none">${esc(s.name)}</a>
+            <span class="muted" style="font-size:11.5px">${s.count} node${s.count!==1?'s':''}</span>
+          </div>
+          ${meterRow('Avg CPU', s.cpuSum / s.count)}
+          <div style="height:8px"></div>
+          ${meterRow('Avg MEM', s.memSum / s.count)}
+        </div>
+      `).join('')}
+    </div>
+  </div>`;
+
+  resHtml += `<div>
+    <div style="font-size:11.5px;font-weight:600;color:var(--gray-500);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:14px">Highest CPU Consumers</div>
+    <div style="display:flex;flex-direction:column;gap:12px">
+      ${topCpuNodes.map(n => `
+        <div class="clickable" onclick="showNodeDetail('${n.id}', '${esc(n.hostname||n.id)}')" style="padding:14px;border:1px solid var(--gray-200);border-radius:var(--radius-lg);display:flex;flex-direction:column;gap:10px;background:var(--white)">
+          <div style="display:flex;align-items:center;justify-content:space-between">
+            <div style="display:flex;align-items:center;gap:8px">
+              <span class="online-ring"></span>
+              <span style="font-size:13px;font-weight:600;color:var(--accent)">${esc(n.hostname||n.id)}</span>
+            </div>
+            <span class="muted mono" style="font-size:11px">${esc(sites.find(s=>s.id===n.site_id)?.name || n.site_id)}</span>
+          </div>
+          <div>
+            ${meterRow('CPU', n.cpu_usage)}
+            <div style="height:6px"></div>
+            ${meterRow('MEM', n.mem_usage)}
+          </div>
+        </div>
+      `).join('')}
+    </div>
+  </div>`;
+
+  resHtml += `</div>`;
+  document.getElementById('resource-body').innerHTML = resHtml;
+}
+
+// Funzione globale per mostrare l'heartbeat
+async function showNodeDetail(nodeId, hostname) {
+    document.getElementById('nd-title').textContent = hostname;
+    document.getElementById('nd-subtitle').textContent = 'Node ID: ' + nodeId;
+    document.getElementById('nd-body').innerHTML = '<div class="loader-row"><div class="spinner"></div> Loading telemetry...</div>';
+    openModal('modal-node-detail');
+
+    try {
+        const heartbeats = await Nodes.heartbeats(nodeId, 10);
+        if (!heartbeats || heartbeats.length === 0) {
+            document.getElementById('nd-body').innerHTML = emptyState('No telemetry', 'This node has not sent any heartbeats yet.');
+            return;
+        }
+
+        const latest = heartbeats[0];
+        const extra = latest.extra_data || {};
+
+        let html = `<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px;margin-bottom:20px;">`;
+
+        // --- CARD 1: SYSTEM INFO ---
+        html += `<div class="card" style="padding:16px"><div class="card-title" style="margin-bottom:12px">System Info</div>`;
+        html += kvRow('IP Address', latest.ip_address);
+        
+        // Estraiamo OS e Versione dagli Extra Data
+        if (extra.os_platform) {
+            const osStr = (extra.os_version && extra.os_version !== "unknown") 
+                ? `${extra.os_platform} (${extra.os_version})` 
+                : extra.os_platform;
+            // Usiamo capitalize (opzionale) o lo stampiamo così com'è
+            html += kvRow('OS', esc(osStr));
+        }
+
+        html += kvRow('Uptime', fmtUptime(latest.uptime_seconds));
+        html += kvRow('Disk Usage', fmtPct(latest.disk_usage));
+        html += `</div>`;
+
+        // --- CARD 2: EXTRA TELEMETRY ---
+        html += `<div class="card" style="padding:16px"><div class="card-title" style="margin-bottom:12px">Extra Telemetry</div>`;
+        if(Object.keys(extra).length === 0) {
+             html += `<span class="muted" style="font-size:13px">No additional telemetry provided by agent.</span>`;
+        } else {
+             html += `<span class="muted" style="font-size:13px; display:block; margin-bottom:8px">Advanced metrics (Network, Load, Processes).</span>`;
+             html += `<details style="font-size:12px">
+                        <summary style="cursor:pointer;color:var(--accent);font-weight:500">View Raw Data</summary>
+                        <pre style="background:#f1f5f9;padding:10px;border-radius:6px;margin-top:8px;white-space:pre-wrap;word-break:break-all;max-height:220px;overflow-y:auto">${esc(JSON.stringify(extra, null, 2))}</pre>
+                      </details>`;
+        }
+        html += `</div></div>`;
+
+        // --- TABELLA HEARTBEAT RECENTI ---
+        html += `<div class="card"><div class="card-header"><div class="card-title">Recent Heartbeats</div></div>`;
+        html += `<div class="table-wrap"><table><thead><tr><th>Time</th><th>CPU</th><th>RAM</th><th>Disk</th></tr></thead><tbody>`;
+        html += heartbeats.map(h => `<tr>
+            <td class="mono muted">${fmtDate(h.timestamp)}</td>
+            <td>
+              <div class="row" style="gap:7px"><div class="prog"><div class="prog-bar ${barCls(h.cpu_usage)}" style="width:${Math.min(h.cpu_usage||0,100)}%"></div></div><span class="mono">${fmtPct(h.cpu_usage)}</span></div>
+            </td>
+            <td>
+              <div class="row" style="gap:7px"><div class="prog"><div class="prog-bar ${barCls(h.memory_usage)}" style="width:${Math.min(h.memory_usage||0,100)}%"></div></div><span class="mono">${fmtPct(h.memory_usage)}</span></div>
+            </td>
+            <td>${fmtPct(h.disk_usage)}</td>
+        </tr>`).join('');
+        html += `</tbody></table></div></div>`;
+
+        document.getElementById('nd-body').innerHTML = html;
+    } catch(e) {
+        document.getElementById('nd-body').innerHTML = `<div style="color:var(--danger);padding:16px">${esc(e.message)}</div>`;
+    }
+}
+
+loadAll();
+setInterval(loadAll, 30000);
+</script>
+</body>
+</html>
