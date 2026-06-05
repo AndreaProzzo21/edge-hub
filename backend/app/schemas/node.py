@@ -12,6 +12,9 @@ class NodeResponse(BaseModel):
     agent_version: str
     os: str | None
     arch: str | None
+    cpu_usage: float | None
+    mem_usage: float | None
+    uptime_seconds: float | None
     status: str
     last_seen: datetime | None
     created_at: datetime

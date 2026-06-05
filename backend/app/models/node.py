@@ -1,6 +1,6 @@
 from datetime import datetime
 from enum import Enum
-from sqlalchemy import DateTime, ForeignKey, String
+from sqlalchemy import DateTime, ForeignKey, String, Float
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from .base import Base
@@ -37,6 +37,9 @@ class Node(Base):
 
     status: Mapped[str] = mapped_column(String(16), default=NodeStatus.UNKNOWN)
     last_seen: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    cpu_usage: Mapped[float | None] = mapped_column(Float, nullable=True)
+    mem_usage: Mapped[float | None] = mapped_column(Float, nullable=True)
+    uptime_seconds: Mapped[float | None] = mapped_column(Float, nullable=True)
 
     # Relazioni
     site: Mapped["Site"] = relationship(back_populates="nodes")

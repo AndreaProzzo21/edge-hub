@@ -10,10 +10,6 @@ class HeartbeatRequest(BaseModel):
     memory_usage: float = Field(..., ge=0, le=100)
     disk_usage: float = Field(..., ge=0, le=100)
     uptime_seconds: float = Field(..., ge=0)
-
-    # Campi semi-strutturati — opzionali, indicizzati sul DB per query rapide
-    container_count: int | None = None
-    pod_count: int | None = None
     ip_address: str | None = None
 
     # Tutto il resto — ogni agente ci mette quello che vuole
@@ -34,8 +30,6 @@ class HeartbeatRecord(BaseModel):
     memory_usage: float
     disk_usage: float
     uptime_seconds: float
-    container_count: int | None
-    pod_count: int | None
     ip_address: str | None
     extra_data: dict[str, Any] | None
     timestamp: datetime

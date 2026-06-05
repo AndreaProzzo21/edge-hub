@@ -24,8 +24,6 @@ class Heartbeat(Base):
     uptime_seconds: Mapped[float] = mapped_column(Float)
 
     # Campi opzionali
-    container_count: Mapped[int | None] = mapped_column(Integer, nullable=True)
-    pod_count: Mapped[int | None] = mapped_column(Integer, nullable=True)
     ip_address: Mapped[str | None] = mapped_column(String(45), nullable=True)
 
     extra_data: Mapped[dict | None] = mapped_column(JSON, nullable=True)

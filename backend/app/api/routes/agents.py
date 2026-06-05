@@ -121,8 +121,6 @@ async def heartbeat(
         memory_usage=body.memory_usage,
         disk_usage=body.disk_usage,
         uptime_seconds=body.uptime_seconds,
-        container_count=body.container_count,
-        pod_count=body.pod_count,
         ip_address=body.ip_address,
         extra_data=body.extra_data,
         timestamp=now,
@@ -131,6 +129,9 @@ async def heartbeat(
 
     node.last_seen = now
     node.status = NodeStatus.ONLINE
+    node.cpu_usage = body.cpu_usage      
+    node.mem_usage = body.memory_usage
+    node.uptime_seconds = body.uptime_seconds
 
     await db.commit()
 
