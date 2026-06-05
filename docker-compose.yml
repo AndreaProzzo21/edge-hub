@@ -1,0 +1,41 @@
+services:
+  postgres:
+    image: postgres:17
+    environment:
+      POSTGRES_DB: edgehub
+      POSTGRES_USER: edgehub
+      POSTGRES_PASSWORD: edgehub
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U edgehub"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build: ./backend
+    # NON espone più le porte all'esterno (lo fa Nginx)
+    volumes:
+      - ./backend:/app
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: "postgresql+asyncpg://edgehub:edgehub@postgres/edgehub"
+      JWT_SECRET_KEY: "dev-secret-change-in-production"
+      NODE_OFFLINE_THRESHOLD_SECONDS: "90"
+
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      # Creiamo una cartella vuota per il frontend per evitare errori di Nginx
+      - ./frontend:/usr/share/nginx/html
+    depends_on:
+      - backend
+
+volumes:
+  postgres_data:
