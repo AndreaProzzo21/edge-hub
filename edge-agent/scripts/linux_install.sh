@@ -43,13 +43,13 @@ fi
 # ==============================================================================
 #  CONSTANTS
 # ==============================================================================
-readonly AGENT_NAME="edge-agent"
+readonly AGENT_NAME="edgehub-agent"
 readonly INSTALL_DIR="/opt/edgehub"
 readonly BINARY_PATH="${INSTALL_DIR}/${AGENT_NAME}"
 readonly ENV_FILE="${INSTALL_DIR}/.env"
 readonly SERVICE_NAME="edgehub-agent"
 readonly SERVICE_FILE="/etc/systemd/system/${SERVICE_NAME}.service"
-readonly RELEASES_URL="https://github.com/yourorg/edgehub/releases/latest/download"
+readonly RELEASES_URL="https://raw.githubusercontent.com/AndreaProzzo21/edge-hub/main/edge-agent/deploy/linux"
 readonly LOG_FILE="/tmp/edgehub-install-$(date +%s).log"
 
 # Runtime vars (populated during configuration)
@@ -252,10 +252,9 @@ _preflight() {
   _step "Detecting system architecture…"
   local raw_arch; raw_arch=$(uname -m)
   case "$raw_arch" in
-    x86_64)         DETECTED_ARCH="amd64" ;;
-    aarch64|arm64)  DETECTED_ARCH="arm64" ;;
-    armv7l|armv6l)  DETECTED_ARCH="arm"   ;;
-    *)              DETECTED_ARCH=""       ;;
+    x86_64)        DETECTED_ARCH="amd64" ;;
+    aarch64|arm64) DETECTED_ARCH="arm64" ;;
+    *)             DETECTED_ARCH=""      ;;
   esac
   if [[ -n "$DETECTED_ARCH" ]]; then
     _ok "Architecture detected: ${raw_arch} → ${BGREEN}${DETECTED_ARCH}${C0}"
@@ -329,25 +328,28 @@ _configure() {
   echo ""
   echo -e "    ${BOLD}1)${C0}  x86_64  / amd64  ${DIM}— standard 64-bit Intel/AMD${C0}"
   echo -e "    ${BOLD}2)${C0}  aarch64 / arm64  ${DIM}— 64-bit ARM (Raspberry Pi 4+, AWS Graviton)${C0}"
-  echo -e "    ${BOLD}3)${C0}  armv7l  / arm    ${DIM}— 32-bit ARM (Raspberry Pi 2/3, older boards)${C0}"
   echo ""
 
   local auto_opt=""
   case "$DETECTED_ARCH" in
     amd64) auto_opt="1" ;;
     arm64) auto_opt="2" ;;
-    arm)   auto_opt="3" ;;
   esac
 
   while true; do
-    _prompt "Architecture [1-3]" "${auto_opt}"
+    _prompt "Architecture [1-2]" "${auto_opt}"
     case "$REPLY" in
-      1) SELECTED_ARCH="amd64"; BIN_FILENAME="${AGENT_NAME}-linux-amd64"; break ;;
-      2) SELECTED_ARCH="arm64"; BIN_FILENAME="${AGENT_NAME}-linux-arm64"; break ;;
-      3) SELECTED_ARCH="arm";   BIN_FILENAME="${AGENT_NAME}-linux-arm";   break ;;
-      *) _warn "Please enter 1, 2 or 3." ;;
+      1) SELECTED_ARCH="amd64"; BIN_FILENAME="edgehub-agent-linux-amd64"; break ;;
+      2) SELECTED_ARCH="arm64"; BIN_FILENAME="edgehub-agent-linux-arm64"; break ;;
+      *) _warn "Please enter 1 or 2." ;;
     esac
   done
+
+  echo ""
+
+  # Heartbeat interval
+  _prompt "Heartbeat interval (seconds)" "30"
+  EDGEHUB_HEARTBEAT="${REPLY:-30}"
 
   # Advanced options
   echo ""
@@ -377,6 +379,7 @@ _confirm_summary() {
   echo -e "  ${BOLD}Description${C0}        ${WHITE}${EDGEHUB_DESCRIPTION}${C0}"
   echo -e "  ${BOLD}Architecture${C0}       ${BGREEN}${SELECTED_ARCH}${C0}"
   echo -e "  ${BOLD}Binary${C0}             ${GRAY}${BIN_FILENAME}${C0}"
+  echo -e "  ${BOLD}Heartbeat${C0}          ${WHITE}every ${EDGEHUB_HEARTBEAT}s${C0}"
   echo -e "  ${BOLD}Install path${C0}       ${GRAY}${INSTALL_DIR}${C0}"
   echo -e "  ${BOLD}Service${C0}            ${GRAY}${SERVICE_NAME}.service (systemd)${C0}"
   echo -e "  ${BOLD}Service user${C0}       ${GRAY}${SERVICE_USER}${C0}"
@@ -489,6 +492,7 @@ EDGEHUB_TOKEN=${EDGEHUB_TOKEN}
 EDGEHUB_HOSTNAME=${EDGEHUB_HOSTNAME}
 EDGEHUB_DESCRIPTION=${EDGEHUB_DESCRIPTION}
 EDGEHUB_AGENT_TYPE=linux
+EDGEHUB_HEARTBEAT_INTERVAL=${EDGEHUB_HEARTBEAT}
 EOF
 
   chmod 600 "${ENV_FILE}"
