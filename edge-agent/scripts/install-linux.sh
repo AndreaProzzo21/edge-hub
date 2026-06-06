@@ -23,7 +23,7 @@ ENV_FILE="${INSTALL_DIR}/.env"
 SERVICE_NAME="edgehub"
 
 # GitHub Latest Release Download URL
-RELEASES_URL="https://github.com/AndreaProzzo21/edge-hub/releases/latest/download"
+RELEASES_URL="https://raw.githubusercontent.com/AndreaProzzo21/edge-hub/main/edge-agent/deploy/linux"
 
 # --- UI HELPERS ---
 _step()   { echo -e "\n ${BCYAN}➜${C0}  $*"; }
