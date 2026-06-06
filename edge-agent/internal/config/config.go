@@ -4,6 +4,7 @@ import (
 	"log"
 	"os"
 	"runtime"
+	"strconv"
 	"strings"
 )
 
@@ -15,7 +16,8 @@ type Config struct {
 	BackendURL  string
 	Token       string
 	StateFile   string // Where we save the JWT to survive reboots
-	
+	Interval    int    // Heartbeat interval in seconds
+
 	// Registration metadata (aligned with Pydantic Model)
 	Hostname    string
 	Description string
@@ -53,13 +55,22 @@ func Load() *Config {
 	description := os.Getenv("EDGEHUB_DESCRIPTION")
 
 	// 5. OS and Architecture detection
-	osName := runtime.GOOS     // e.g., "linux", "windows", "darwin"
+	osName := runtime.GOOS   // e.g., "linux", "windows", "darwin"
 	archName := runtime.GOARCH // e.g., "amd64", "arm64"
+
+	// 6. Heartbeat Interval
+	intervalStr := getEnvOrDefault("EDGEHUB_INTERVAL", "30")
+	interval, err := strconv.Atoi(intervalStr)
+	if err != nil || interval <= 0 {
+		log.Printf("WARN: Invalid EDGEHUB_INTERVAL '%s', falling back to default 30s", intervalStr)
+		interval = 30
+	}
 
 	return &Config{
 		BackendURL:  url,
 		Token:       token,
 		StateFile:   stateFile,
+		Interval:    interval,
 		Hostname:    hostname,
 		Description: description,
 		AgentType:   agentType,

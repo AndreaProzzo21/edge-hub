@@ -20,14 +20,14 @@ func main() {
 	edgeClient := client.NewEdgeClient(cfg)
 	edgeClient.Init() // Se la registrazione fallisce o manca il token, l'app si ferma qui
 
-	// 3. Imposta il Loop dell'Heartbeat (es. ogni 30 secondi)
-	interval := 30 * time.Second
+	// 3. Imposta il Loop dell'Heartbeat in base alla configurazione
+	interval := time.Duration(cfg.Interval) * time.Second
 	ticker := time.NewTicker(interval)
 	defer ticker.Stop()
 
 	log.Printf("INFO: Entering heartbeat loop. Sending telemetry every %v...", interval)
 
-	// Invia il primissimo heartbeat immediatamente (senza aspettare i primi 30 secondi)
+	// Invia il primissimo heartbeat immediatamente (senza aspettare il primo tick)
 	sendTelemetry(edgeClient, cfg.AgentType)
 
 	// Aspetta i "tick" del timer e invia i dati all'infinito

@@ -88,6 +88,9 @@ EDGEHUB_HOSTNAME="$REPLY"
 _prompt "Node Description" "Linux Edge Node"
 EDGEHUB_DESC="$REPLY"
 
+_prompt "Heartbeat Interval (seconds)" "30"
+EDGEHUB_INTERVAL="$REPLY"
+
 _prompt "Architecture [1: amd64, 2: arm64]" "$([[ "$DETECTED_ARCH" == "amd64" ]] && echo "1" || echo "2")"
 case "$REPLY" in
   2) BIN_FILENAME="edgehub-agent-linux-arm64" ;;
@@ -112,6 +115,7 @@ EDGEHUB_URL=${EDGEHUB_URL}
 EDGEHUB_TOKEN=${EDGEHUB_TOKEN}
 EDGEHUB_HOSTNAME=${EDGEHUB_HOSTNAME}
 EDGEHUB_DESCRIPTION=${EDGEHUB_DESC}
+EDGEHUB_INTERVAL=${EDGEHUB_INTERVAL}
 EDGEHUB_MODE=linux
 EDGEHUB_STATE_FILE=${INSTALL_DIR}/data/edgehub-state.json
 EOF

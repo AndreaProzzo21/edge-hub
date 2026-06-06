@@ -92,6 +92,9 @@ EDGEHUB_HOSTNAME="$REPLY"
 _prompt "Node Description" "Docker Edge Node"
 EDGEHUB_DESC="$REPLY"
 
+_prompt "Heartbeat Interval (seconds)" "30"
+EDGEHUB_INTERVAL="$REPLY"
+
 # --- 3. WORKSPACE & DOWNLOAD ---
 _step "Setting up workspace..."
 mkdir -p "${INSTALL_DIR}/data"  # Folder to mount the state volume safely
@@ -108,6 +111,7 @@ EDGEHUB_URL=${EDGEHUB_URL}
 EDGEHUB_TOKEN=${EDGEHUB_TOKEN}
 EDGEHUB_HOSTNAME=${EDGEHUB_HOSTNAME}
 EDGEHUB_DESCRIPTION=${EDGEHUB_DESC}
+EDGEHUB_INTERVAL=${EDGEHUB_INTERVAL}
 EDGEHUB_MODE=docker
 EDGEHUB_STATE_FILE=/app/data/edgehub-state.json
 EOF
