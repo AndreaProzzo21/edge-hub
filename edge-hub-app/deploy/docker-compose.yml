@@ -1,0 +1,43 @@
+services:
+  postgres:
+    image: postgres:17
+    container_name: edgehub-postgres
+    restart: unless-stopped
+    # Legge le credenziali dal file .env (con fallback sicuri)
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-edgehub}
+      POSTGRES_USER: ${POSTGRES_USER:-edgehub_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change_this_password}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-edgehub_user}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    # Sostituisci "tuo-utente" con il tuo account DockerHub o GitHub Packages (es. ghcr.io/avalab/edgehub-backend:latest)
+    image: aprozzo/edgehub-backend:latest
+    container_name: edgehub-backend
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    # Carica tutte le configurazioni segrete (JWT, API keys) da qui
+    env_file:
+      - .env
+
+  nginx:
+    # Questa immagine conterrà già nginx.conf e i file del frontend compilati
+    image: aprozzo/edgehub-frontend:latest
+    container_name: edgehub-nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      # - "443:443" # Decommentare in futuro quando aggiungerai i certificati SSL
+    depends_on:
+      - backend
+
+volumes:
+  postgres_data:
