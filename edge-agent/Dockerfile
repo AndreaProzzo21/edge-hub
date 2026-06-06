@@ -1,7 +1,8 @@
 # ==========================================
 # Fase 1: Build (Ambiente di compilazione)
 # ==========================================
-FROM golang:alpine AS builder
+# Specifica la piattaforma del builder per velocizzare il processo
+FROM --platform=$BUILDPLATFORM golang:alpine AS builder
 
 WORKDIR /app
 
@@ -12,8 +13,12 @@ RUN go mod download
 # Copia tutto il codice sorgente
 COPY . .
 
-# Compila l'agente come binario statico
-RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o edgehub-agent cmd/agent/main.go
+# Queste due righe "catturano" l'architettura che buildx sta processando in quel momento
+ARG TARGETOS
+ARG TARGETARCH
+
+# Compila l'agente usando le variabili dinamiche invece di forzare amd64!
+RUN CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH go build -ldflags="-s -w" -o edgehub-agent cmd/agent/main.go
 
 # ==========================================
 # Fase 2: Immagine di Produzione leggerissima
