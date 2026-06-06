@@ -24,3 +24,4 @@ Thumbs.db
 test/
 edge-agent/edgehub-*
 edge-agent/go.sum
+edge-agent/edgehub-state.json
