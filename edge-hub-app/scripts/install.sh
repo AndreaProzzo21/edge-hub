@@ -41,9 +41,9 @@ _prompt() {
     printf "  ${WHITE}%s${C0}: " "$prompt_text"
   fi
   
-  read -r REPLY < /dev/tty
-  
-  # FIX: Using a proper IF statement avoids the set -e trap!
+  REPLY=""
+  read -r REPLY < /dev/tty || true
+
   if [[ -z "$REPLY" && -n "$default_val" ]]; then
     REPLY="$default_val"
   fi
