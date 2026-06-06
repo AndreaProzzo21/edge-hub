@@ -5,14 +5,14 @@ services:
     restart: unless-stopped
     # Montiamo il file di stato per mantenere il JWT tra i riavvii
     volumes:
-      - ./edgehub-state.json:/app/edgehub-state.json:rw
+      - ./data:/app/data:rw
       # Montiamo il socket per permettere all'agente di leggere i container
       - /var/run/docker.sock:/var/run/docker.sock:ro
     # Carichiamo le variabili dal file .env generato dallo script
     env_file:
       - .env
-    # Manteniamo il container il più isolato possibile
-    read_only: true
+    environment:
+      - EDGEHUB_STATE_FILE=/app/data/edgehub-state.json
     tmpfs:
       - /tmp
     logging:

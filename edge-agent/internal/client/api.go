@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 	"time"
+	"path/filepath"
 
 	"github.com/avalab/edgehub-agent/internal/config"
 	"github.com/avalab/edgehub-agent/internal/models"
@@ -74,15 +75,23 @@ func (c *EdgeClient) loadState() bool {
 	return false
 }
 
-// saveState saves the JWT to disk
 func (c *EdgeClient) saveState(token string) error {
-	state := agentState{AgentToken: token}
-	data, err := json.MarshalIndent(state, "", "  ")
-	if err != nil {
-		return err
-	}
-	// Save with 0600 permissions (only the current user can read/write) for security
-	return os.WriteFile(c.Config.StateFile, data, 0600)
+    state := agentState{AgentToken: token}
+    data, err := json.MarshalIndent(state, "", "  ")
+    if err != nil {
+        return err
+    }
+    
+    // 1. Estrai il percorso della cartella dal nome del file
+    dir := filepath.Dir(c.Config.StateFile)
+    
+    // 2. Crea la cartella (se non esiste) con i giusti permessi
+    if err := os.MkdirAll(dir, 0755); err != nil {
+        return fmt.Errorf("impossibile creare la directory di stato: %w", err)
+    }
+
+    // 3. Salva il file (0644 permette all'utente di scrivere e agli altri di leggere)
+    return os.WriteFile(c.Config.StateFile, data, 0644)
 }
 
 // Register sends the registration request to the backend
