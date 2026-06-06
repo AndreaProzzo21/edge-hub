@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>EdgeHub — Documentation</title>
+<link rel="stylesheet" href="css/app.css">
+<style>
+  .doc-section { margin-bottom: 24px; }
+  .doc-text { font-size: 14px; color: var(--gray-600); line-height: 1.6; margin-bottom: 12px; }
+  .doc-code { background: var(--gray-50); padding: 12px; border-radius: var(--radius-md); border: 1px solid var(--gray-200); font-family: var(--mono); font-size: 13px; color: var(--gray-800); overflow-x: auto; margin-bottom: 12px; }
+  .doc-list { list-style: none; padding: 0; margin: 0 0 16px 0; }
+  .doc-list li { font-size: 14px; color: var(--gray-700); margin-bottom: 8px; padding-left: 20px; position: relative; }
+  .doc-list li::before { content: "•"; color: var(--accent); position: absolute; left: 0; font-weight: bold; }
+  
+  /* Banner Header Background */
+  .hero-banner {
+    background: linear-gradient(135deg, var(--gray-900) 0%, var(--gray-800) 100%);
+    color: var(--white);
+    border: none;
+    margin-bottom: 24px;
+    border-radius: var(--radius-lg);
+  }
+</style>
+</head>
+<body>
+<div class="shell">
+  <div id="sidebar-mount"></div>
+  <div class="main">
+    <div class="topbar">
+      <div class="breadcrumb">
+        <span class="breadcrumb-cur">Documentation & Architecture</span>
+      </div>
+    </div>
+
+    <div class="page-body page-enter">
+      
+      <div class="card hero-banner">
+        <div class="card-body" style="padding: 30px;">
+          <h2 style="margin: 0 0 10px 0; font-size: 24px; font-weight: 600; color: #ffffff;">System Architecture</h2>
+          <p style="margin: 0; font-size: 15px; color: #e2e8f0; max-width: 650px; line-height: 1.5;">
+            EdgeHub is an asynchronous telemetry platform designed for distributed infrastructure monitoring. It utilizes a central FastAPI backend to aggregate metrics transmitted by ultra-lightweight, natively compiled Golang agents deployed at the edge.
+          </p>
+        </div>
+      </div>
+
+      <div class="grid-2">
+        <div class="card doc-section">
+          <div class="card-header">
+            <div class="card-title">1. Agent Lifecycle & Authentication</div>
+          </div>
+          <div class="card-body">
+            <p class="doc-text">
+              The Edge Agent is a standalone Go binary with zero external dependencies, supporting both AMD64 and ARM64 architectures. It operates with a minimal resource footprint.
+            </p>
+            <p class="doc-text" style="font-weight: 500; margin-top: 16px;">Registration Flow:</p>
+            <ul class="doc-list">
+              <li>Upon initial execution, the agent utilizes a temporary provisioning token to authenticate against the backend API.</li>
+              <li>The backend validates the token, registers the hardware metadata, and issues a persistent JSON Web Token (JWT).</li>
+              <li>This JWT is stored locally within the node's filesystem (<code>edgehub-state.json</code>).</li>
+              <li>During subsequent service restarts, the agent bypasses the registration phase entirely, utilizing the stored JWT to immediately resume telemetry transmission.</li>
+            </ul>
+            <p class="doc-text" style="font-weight: 500; margin-top: 16px; color: var(--danger);">Security & Revocation:</p>
+            <ul class="doc-list">
+              <li>In the event that a node or its locally stored JWT is compromised, administrators can simply delete the node via the EdgeHub dashboard. This action instantly invalidates the JWT on the backend, permanently revoking the compromised agent's access to the system.</li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="card doc-section">
+          <div class="card-header">
+            <div class="card-title">2. Alerting & State Management</div>
+          </div>
+          <div class="card-body">
+            <p class="doc-text">
+              Third-party webhooks (e.g., Discord, Slack) can be configured at the Site level to receive real-time infrastructure alerts. To mitigate false positives caused by transient network instability, EdgeHub implements a buffered state evaluation mechanism for node availability.
+            </p>
+            <ul class="doc-list">
+              <li><strong>Threshold Evaluation:</strong> When a node fails to transmit a scheduled heartbeat, the backend increments an internal <code>offline_cycles</code> counter. The node enters a failing state, but no external notifications are triggered.</li>
+              <li><strong>Alert Dispatch:</strong> If a node accumulates three consecutive missed cycles, the system transitions its state to offline and dispatches the configured Webhook payloads.</li>
+              <li><strong>Automated Recovery:</strong> Upon the successful reception of a new heartbeat from a previously offline node, the backend immediately resets the failure counters and dispatches a recovery notification via the established Webhook channels.</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <div class="grid-2">
+        <div class="card doc-section">
+          <div class="card-header">
+            <div class="card-title">3. Deployment Topologies</div>
+          </div>
+          <div class="card-body">
+            <p class="doc-text">The agent dynamically adapts its data collection methodology based on the <code>EDGEHUB_MODE</code> environment variable:</p>
+            <ul class="doc-list">
+              <li><strong>Linux Native (Systemd):</strong> Executed as a root-level background daemon. Designed for bare-metal servers, virtual machines, and IoT devices (e.g., Raspberry Pi).</li>
+              <li><strong>Docker Compose:</strong> Operates within an isolated container environment. It requires read-only mounts of host system volumes to accurately calculate underlying hardware utilization.</li>
+              <li><strong>Kubernetes (DaemonSet):</strong> Deployed cluster-wide to ensure a single agent instance runs on every physical or virtual node, with automatic lifecycle management handled by the Kubelet.</li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="card doc-section" style="border: 1px solid var(--gray-200);">
+          <div class="card-header" style="background: var(--gray-50); border-bottom: 1px solid var(--gray-200);">
+            <div>
+              <div class="card-title">Developer API</div>
+              <div class="card-subtitle">OpenAPI Specification</div>
+            </div>
+          </div>
+          <div class="card-body" style="display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 40px 20px;">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="width: 42px; height: 42px; color: var(--gray-400); margin-bottom: 16px;">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M14.25 9.75L16.5 12l-2.25 2.25m-4.5 0L7.5 12l2.25-2.25M6 20.25h12A2.25 2.25 0 0020.25 18V6A2.25 2.25 0 0018 3.75H6A2.25 2.25 0 003.75 6v12A2.25 2.25 0 006 20.25z" />
+            </svg>
+            <h3 style="font-size: 15px; font-weight: 600; margin: 0 0 8px 0; color: var(--gray-900);">REST API Documentation</h3>
+            <p class="doc-text" style="margin-bottom: 20px; font-size: 13px;">
+              The backend exposes fully documented auto-generated OpenAPI schemas.
+            </p>
+            <a href="/docs" target="_blank" class="btn btn-secondary">
+              Open Swagger UI
+              <svg viewBox="0 0 20 20" fill="currentColor" style="margin-left:6px; width:14px; height:14px;"><path d="M11 3a1 1 0 100 2h2.586l-6.293 6.293a1 1 0 101.414 1.414L15 6.414V9a1 1 0 102 0V4a1 1 0 00-1-1h-5z"/><path d="M5 5a2 2 0 00-2 2v8a2 2 0 002 2h8a2 2 0 002-2v-3a1 1 0 10-2 0v3H5V7h3a1 1 0 000-2H5z"/></svg>
+            </a>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script src="js/api.js"></script>
+<script>
+document.getElementById('sidebar-mount').innerHTML = SIDEBAR_HTML;
+
+async function load() {
+  if (!(await requireAuth())) return;
+}
+
+load();
+</script>
+</body>
+</html>
