@@ -40,10 +40,12 @@ _prompt() {
     printf "  ${WHITE}%s${C0}: " "$prompt_text"
   fi
   
-  # The crucial fix: forces bash to read from the terminal, avoiding curl pipe issues
   read -r REPLY < /dev/tty
   
-  [[ -z "$REPLY" && -n "$default_val" ]] && REPLY="$default_val"
+  # FIX: Using a proper IF statement avoids the set -e trap!
+  if [[ -z "$REPLY" && -n "$default_val" ]]; then
+    REPLY="$default_val"
+  fi
 }
 
 # --- HEADER ---
