@@ -28,7 +28,7 @@ ENV_EXAMPLE_URL="https://raw.githubusercontent.com/AndreaProzzo21/edge-hub/main/
 # --- UI HELPERS ---
 _step()   { echo -e "\n ${BCYAN}➜${C0}  $*"; }
 _ok()     { echo -e " ${BGREEN}✔${C0}  $*"; }
-_info()   { echo -e " ${CYAN}ℹ${C0}  ${GRAY}$*${C0}"; }
+_info()   { echo -e " ${BCYAN}ℹ${C0}  ${GRAY}$*${C0}"; }
 _warn()   { echo -e " ${YELLOW}⚠${C0}  ${YELLOW}$*${C0}"; }
 _err()    { echo -e "\n ${BRED}✖${C0}  ${BRED}ERROR:${C0} $*\n"; exit 1; }
 
