@@ -15,11 +15,10 @@ AdminSessionDep = Depends(get_admin_session)
 
 # Helper per generare i comandi (DRY: Don't Repeat Yourself)
 def generate_installation_commands(request: Request, raw_token: str) -> dict:
-    base_url = str(request.base_url).rstrip("/")
     return {
-        "linux": f"curl -fsSL {base_url}/install.sh | EDGEHUB_TOKEN={raw_token} EDGEHUB_URL={base_url} bash",
-        "docker": f"docker run -d --name edgehub-agent -e EDGEHUB_TOKEN={raw_token} -e EDGEHUB_URL={base_url} ghcr.io/yourorg/edgehub-agent-linux:latest",
-        "kubernetes": f"helm install edgehub-agent oci://ghcr.io/yourorg/charts/edgehub-agent --set token={raw_token} --set hubUrl={base_url}",
+        "linux": "curl -sSL https://raw.githubusercontent.com/AndreaProzzo21/edge-hub/main/edge-agent/scripts/install-linux.sh | sudo bash",
+        "docker": "curl -sSL https://raw.githubusercontent.com/AndreaProzzo21/edge-hub/main/edge-agent/scripts/install-docker.sh | sudo bash",
+        "kubernetes": "curl -sSL https://raw.githubusercontent.com/AndreaProzzo21/edge-hub/main/edge-agent/scripts/install-k8s.sh | sudo bash",
     }
 
 @router.post("/{site_id}/tokens", response_model=TokenResponse, status_code=status.HTTP_201_CREATED, dependencies=[AdminSessionDep])
