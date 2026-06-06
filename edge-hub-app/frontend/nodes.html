@@ -120,7 +120,7 @@ function renderNodes(list) {
     tbody.innerHTML = list.map(n => `
       <tr class="clickable" onclick="showNodeDetail('${n.id}', '${esc(n.hostname||n.id)}')">
         <td class="td-primary">${esc(n.hostname||n.id)}</td>
-        <td>${statusBadge(n.status)}</td>
+        <td>${statusBadge(n.status, n.offline_cycles, n.offline_alert_sent)}</td>
         <td class="mono muted">${esc(n.site_id)}</td>
         <td>${agentTypeBadge(n.agent_type)}</td>
         <td class="mono muted">${relTime(n.last_seen)}</td>

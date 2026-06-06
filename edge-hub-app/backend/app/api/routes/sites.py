@@ -4,17 +4,16 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-# Importiamo la nuova dipendenza per i cookie
 from ...core.security import get_admin_session
 from ...infrastructure.database import get_db
 from ...models.node import Node
 from ...models.site import Site
 from ...schemas.node import NodeResponse
-from ...schemas.site import SiteCreate, SiteResponse
+# Assicurati di importare SitePatch!
+from ...schemas.site import SiteCreate, SiteResponse, SitePatch
 
 router = APIRouter(prefix="/sites", tags=["sites"])
 
-# Questa dipendenza proteggerà le rotte tramite Cookie HttpOnly
 AdminSessionDep = Depends(get_admin_session)
 
 @router.post(
@@ -28,8 +27,27 @@ async def create_site(body: SiteCreate, db: AsyncSession = Depends(get_db)):
         id=str(uuid.uuid4())[:8],
         name=body.name,
         description=body.description,
+        # --- SALVA I WEBHOOK IN FASE DI CREAZIONE ---
+        discord_webhook_url=body.discord_webhook_url,
+        slack_webhook_url=body.slack_webhook_url,
     )
     db.add(site)
+    await db.commit()
+    await db.refresh(site)
+    return site
+
+# --- NUOVA ROTTA PER AGGIORNARE I WEBHOOK ---
+@router.patch("/{site_id}", response_model=SiteResponse, dependencies=[AdminSessionDep])
+async def patch_site(site_id: str, body: SitePatch, db: AsyncSession = Depends(get_db)):
+    site = await db.get(Site, site_id)
+    if not site:
+        raise HTTPException(status_code=404, detail="Site not found")
+    
+    # Aggiorna solo i campi inviati nella richiesta
+    update_data = body.model_dump(exclude_unset=True)
+    for key, value in update_data.items():
+        setattr(site, key, value)
+        
     await db.commit()
     await db.refresh(site)
     return site

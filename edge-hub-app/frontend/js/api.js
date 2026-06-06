@@ -48,6 +48,7 @@ const Sites = {
   list:         ()            => get('/sites/'),
   get:          (id)          => get('/sites/' + id),
   create:       (body)        => post('/sites/', body),
+  patch:        (id, body)    => patch('/sites/' + id, body),
   delete:       (id)          => del('/sites/' + id),
   nodes:        (id)          => get('/sites/' + id + '/nodes'),
   tokens:       (id)          => get('/sites/' + id + '/tokens'),
@@ -94,10 +95,32 @@ function fmtPct(v) { return v == null ? '—' : parseFloat(v).toFixed(1) + '%'; 
 function barCls(v) { const n = parseFloat(v); return n > 85 ? 'danger' : n > 65 ? 'warn' : 'ok'; }
 
 // ── HTML helpers ──────────────────────────────────────────
-function statusBadge(status) {
+// ── HTML helpers ──────────────────────────────────────────
+function statusBadge(status, offline_cycles, offline_alert_sent) {
   const on = status === 'online';
-  return `<span class="badge badge-${on?'online':'offline'}"><span class="bdot"></span>${esc(status||'unknown')}</span>`;
+  
+  // Stile in linea per forzare il centraggio perfetto di testo e pallino
+  const centerStyle = "display: inline-flex; align-items: center; justify-content: center; text-align: center;";
+  
+  // If online, return standard online badge
+  if (on) {
+    return `<span class="badge badge-online" style="${centerStyle}"><span class="bdot"></span>Online</span>`;
+  }
+  
+  // If offline and alert was sent, show critical error badge
+  if (offline_alert_sent) {
+    return `<span class="badge badge-danger" style="${centerStyle}"><span class="bdot"></span>Alert Sent</span>`;
+  }
+  
+  // If offline but alert not yet sent, show warning badge with cycle count
+  if (offline_cycles > 0) {
+    return `<span class="badge badge-warn" style="${centerStyle}"><span class="bdot"></span>Failing (${offline_cycles}/3)</span>`;
+  }
+
+  // Fallback for standard offline
+  return `<span class="badge badge-offline" style="${centerStyle}"><span class="bdot"></span>Offline</span>`;
 }
+
 function tokenBadge(t) {
   if (t.used)     return `<span class="badge badge-neutral">Used</span>`;
   if (t.is_valid) return `<span class="badge badge-online">Valid</span>`;

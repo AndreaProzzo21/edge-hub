@@ -22,6 +22,10 @@ from ...schemas.heartbeat import (
     HeartbeatResponse
 )
 
+import asyncio
+from ...models.site import Site
+from ...services.alert_engine import dispatch_recovery_alerts
+
 router = APIRouter(prefix="/agents", tags=["agents"])
 bearer = HTTPBearer()
 
@@ -133,10 +137,26 @@ async def heartbeat(
     node.mem_usage = body.memory_usage
     node.uptime_seconds = body.uptime_seconds
 
+    # --- LOGICA ALERT ENGINE: RESET DEI CONTATORI E RECOVERY ---
+    # Se il nodo aveva saltato dei cicli o era stato mandato un alert
+    if getattr(node, 'offline_cycles', 0) > 0 or getattr(node, 'offline_alert_sent', False):
+        
+        # Mandiamo il recovery SOLO SE avevamo effettivamente mandato l'alert in precedenza
+        if getattr(node, 'offline_alert_sent', False):
+            # Carichiamo il Site esplicitamente per avere accesso agli URL dei Webhook
+            site = await db.get(Site, node.site_id)
+            if site:
+                # Creiamo il task asincrono per non rallentare la risposta dell'heartbeat
+                asyncio.create_task(dispatch_recovery_alerts(node, site))
+        
+        # Azzera i contatori in ogni caso (sia che abbia mandato il recovery, sia che
+        # avesse saltato solo 1-2 cicli prima di arrivare alla soglia di alert)
+        node.offline_cycles = 0
+        node.offline_alert_sent = False
+
     await db.commit()
 
     return HeartbeatResponse(node_id=node.id, timestamp=now)
-
 
 # ---------------------------------------------------------------------------
 # GET /agents/me — health check / debug

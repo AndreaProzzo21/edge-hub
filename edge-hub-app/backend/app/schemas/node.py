@@ -1,7 +1,5 @@
 from datetime import datetime
-
 from pydantic import BaseModel, Field
-
 
 class NodeResponse(BaseModel):
     id: str
@@ -18,9 +16,12 @@ class NodeResponse(BaseModel):
     status: str
     last_seen: datetime | None
     created_at: datetime
+    
+    # --- NUOVI CAMPI ALERT ENGINE ---
+    offline_cycles: int
+    offline_alert_sent: bool
 
     model_config = {"from_attributes": True}
-
 
 class NodePatch(BaseModel):
     description: str | None = Field(None, max_length=512)

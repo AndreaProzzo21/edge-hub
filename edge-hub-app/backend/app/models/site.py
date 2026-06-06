@@ -1,4 +1,4 @@
-from sqlalchemy import String
+from sqlalchemy import String, Column
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from .base import Base
 
@@ -8,6 +8,8 @@ class Site(Base):
     id: Mapped[str] = mapped_column(String, primary_key=True)
     name: Mapped[str] = mapped_column(String(128))
     description: Mapped[str | None] = mapped_column(String(512), nullable=True)
+    discord_webhook_url = Column(String, nullable=True)
+    slack_webhook_url = Column(String, nullable=True)
 
     nodes: Mapped[list["Node"]] = relationship(
         back_populates="site", 
