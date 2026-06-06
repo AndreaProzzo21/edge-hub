@@ -21,8 +21,8 @@ ENV_FILE="${INSTALL_DIR}/.env"
 COMPOSE_FILE="${INSTALL_DIR}/docker-compose.yml"
 
 # Update these URLs with the exact 'raw' links to your files on GitHub
-COMPOSE_URL="https://raw.githubusercontent.com/AndreaProzzo21/edge-hub/main/edge-hub-app/deploy/docker/docker-compose.yml"
-ENV_EXAMPLE_URL="https://raw.githubusercontent.com/AndreaProzzo21/edge-hub/main/edge-hub-app/deploy/docker/.env.example"
+COMPOSE_URL="https://raw.githubusercontent.com/AndreaProzzo21/edge-hub/main/edge-hub-app/deploy/docker-compose.yml"
+ENV_EXAMPLE_URL="https://raw.githubusercontent.com/AndreaProzzo21/edge-hub/main/edge-hub-app/deploy/.env.example"
 
 # --- UI HELPERS ---
 _step()   { echo -e "\n ${BCYAN}➜${C0}  $*"; }
