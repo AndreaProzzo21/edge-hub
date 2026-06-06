@@ -1,0 +1,17 @@
+# Usa la versione Alpine di Nginx, che è leggerissima (circa 20MB)
+FROM nginx:alpine
+
+# 1. Rimuovi la configurazione di default di Nginx per evitare conflitti
+RUN rm /etc/nginx/conf.d/default.conf
+
+# 2. Copia il tuo file nginx.conf personalizzato dentro il container
+COPY nginx.conf /etc/nginx/conf.d/default.conf
+
+# 3. Copia tutto il contenuto della cartella 'frontend' nella directory che Nginx usa per servire i file
+COPY frontend/ /usr/share/nginx/html/
+
+# 4. Esponi la porta 80 (quella su cui Nginx è in ascolto)
+EXPOSE 80
+
+# 5. Avvia Nginx in foreground (necessario per non far morire il container Docker)
+CMD ["nginx", "-g", "daemon off;"]
