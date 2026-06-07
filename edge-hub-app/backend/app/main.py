@@ -8,7 +8,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from .infrastructure.database import create_tables
 from .services.offline_detector import offline_detector_loop
 from .services.heartbeat_cleanup import heartbeat_cleanup_task 
-from .api.routes import sites, tokens, agents, nodes, auth
+
+from .api.routes import sites, tokens, agents, nodes, auth, websockets
 
 logging.basicConfig(
     level=logging.INFO,
@@ -57,6 +58,7 @@ app.include_router(sites.router, prefix=API_PREFIX)
 app.include_router(tokens.router, prefix=API_PREFIX)
 app.include_router(agents.router, prefix=API_PREFIX)
 app.include_router(nodes.router, prefix=API_PREFIX)
+app.include_router(websockets.router)
 
 @app.get("/health", tags=["system"])
 async def health():

@@ -7,20 +7,45 @@
 <style>
   .cmd-tab-body { display:none }
   .cmd-tab-body.active { display:block }
-  .token-card{background:var(--white);border:1px solid var(--gray-200);border-radius:var(--radius-lg);padding:16px 18px;margin-bottom:10px;box-shadow:var(--shadow-sm)}
-  .token-card:last-child{margin-bottom:0}
-  .token-header{display:flex;align-items:center;gap:10px;margin-bottom:8px}
-  .token-label{font-size:13.5px;font-weight:600;color:var(--gray-900);flex:1}
-  .token-meta{display:flex;gap:14px;flex-wrap:wrap}
-  .token-meta-item{font-size:11.5px;color:var(--gray-500)}
-  .token-meta-item strong{color:var(--gray-700)}
-  .expand-btn{background:none;border:none;color:var(--gray-400);cursor:pointer;padding:2px 6px;border-radius:var(--radius-sm);transition:background .1s,color .1s;font-size:11px}
-  .expand-btn:hover{background:var(--gray-100);color:var(--gray-700)}
-  .token-commands{display:none;margin-top:12px;border-top:1px solid var(--gray-100);padding-top:12px}
-  .token-commands.open{display:block}
-  /* Stili aggiuntivi per i dettagli del nodo */
+  .token-card {background:var(--white);border:1px solid var(--gray-200);border-radius:var(--radius-lg);padding:16px 18px;margin-bottom:10px;box-shadow:var(--shadow-sm)}
+  .token-card:last-child {margin-bottom:0}
+  
+  /* Allineamento corretto per l'header del token */
+  .token-header {display:flex;align-items:center;margin-bottom:12px; gap: 12px;}
+  .token-label {font-size:14px;font-weight:600;color:var(--gray-900);}
+  
+  .token-meta {display:flex;gap:14px;flex-wrap:wrap}
+  .token-meta-item {font-size:12px;color:var(--gray-500)}
+  .token-meta-item strong {color:var(--gray-700)}
+  
+  .expand-btn {background:none;border:none;color:var(--gray-400);cursor:pointer;padding:2px 6px;border-radius:var(--radius-sm);transition:background .1s,color .1s;font-size:11px}
+  .expand-btn:hover {background:var(--gray-100);color:var(--gray-700)}
+  .token-commands {display:none;margin-top:12px;border-top:1px solid var(--gray-100);padding-top:12px}
+  .token-commands.open {display:block}
+  
   .detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 20px; }
   @media(max-width: 768px) { .detail-grid { grid-template-columns: 1fr; } }
+
+  /* Stili per il Live Monitor (WebSocket) */
+  .terminal-box {
+    background: #0f172a; /* Slate 900 */
+    border-radius: var(--radius-lg);
+    padding: 16px;
+    height: 400px;
+    overflow-y: auto;
+    font-family: var(--mono);
+    font-size: 13px;
+    color: #94a3b8; /* Slate 400 */
+    border: 1px solid #1e293b;
+    box-shadow: inset 0 2px 4px rgba(0,0,0,0.2);
+  }
+  .terminal-line { margin-bottom: 4px; line-height: 1.5; border-bottom: 1px solid #1e293b; padding-bottom: 4px;}
+  .terminal-line:last-child { border-bottom: none; }
+  .term-time { color: #64748b; margin-right: 8px; }
+  .term-info { color: #38bdf8; font-weight: 600;}
+  .term-success { color: #34d399; font-weight: 600;}
+  .term-warn { color: #fbbf24; font-weight: 600;}
+  .term-err { color: #f87171; font-weight: 600;}
 </style>
 </head>
 <body>
@@ -48,6 +73,7 @@
       <div class="tabs" id="main-tabs">
         <button class="tab active" onclick="switchTab('nodes')">Nodes</button>
         <button class="tab" onclick="switchTab('tokens')">Registration Tokens</button>
+        <button class="tab" onclick="switchTab('live')">Live Monitor</button>
       </div>
 
       <div id="tab-nodes" class="page-enter">
@@ -83,6 +109,23 @@
           <div class="loader-row"><div class="spinner"></div> Loading tokens…</div>
         </div>
       </div>
+
+      <div id="tab-live" class="hidden page-enter">
+        <div class="card">
+            <div class="card-header">
+                <div class="card-title">Real-Time Telemetry Stream</div>
+                <div class="card-actions">
+                    <span class="badge" id="ws-status-badge" style="background:var(--gray-100);color:var(--gray-600)">Awaiting Connection...</span>
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="terminal-box" id="ws-terminal">
+                    <div class="terminal-line"><span class="term-time">[System]</span> <span class="term-info">Initializing WebSocket connection to EdgeHub Engine...</span></div>
+                </div>
+            </div>
+        </div>
+      </div>
+
     </div>
   </div>
 </div>
@@ -102,11 +145,11 @@
         <div class="form-group">
           <label class="form-label">Expires in (hours)</label>
           <select id="tok-expires" class="form-select">
+            <option value="1">1 hour</option>
+            <option value="6">6 hours</option>
+            <option value="12">12 hours</option>
             <option value="24">24 hours</option>
-            <option value="168">7 days</option>
-            <option value="730">1 month</option>
-            <option value="4380">6 months</option>
-            <option value="8760" selected>1 year</option>
+            <option value="72" selected>72 hours</option>
           </select>
         </div>
       </div>
@@ -118,45 +161,14 @@
   </div>
 </div>
 
-<div id="modal-renew-token" class="modal-backdrop hidden">
-  <div class="modal">
-    <div class="modal-header">
-      <div class="modal-title">Renew Registration Token</div>
-      <div class="modal-desc">This will generate a new token string and invalidate the old one.</div>
-    </div>
-    <div class="modal-body">
-      <div class="form-row">
-        <div class="form-group">
-          <label class="form-label">Label</label>
-          <input type="text" id="renew-tok-label" class="form-input" placeholder="e.g. batch-jan-2025">
-        </div>
-        <div class="form-group">
-          <label class="form-label">Expires in (hours)</label>
-          <select id="renew-tok-expires" class="form-select">
-            <option value="24">24 hours</option>
-            <option value="168">7 days</option>
-            <option value="730">1 month</option>
-            <option value="4380">6 months</option>
-            <option value="8760" selected>1 year</option>
-          </select>
-        </div>
-      </div>
-    </div>
-    <div class="modal-footer">
-      <button class="btn btn-secondary" onclick="closeModal('modal-renew-token')">Cancel</button>
-      <button class="btn btn-primary" id="do-renew-btn" onclick="executeRenewToken()">Renew Token</button>
-    </div>
-  </div>
-</div>
-
 <div id="modal-show-token" class="modal-backdrop hidden">
   <div class="modal modal-wide">
     <div class="modal-header">
       <div class="modal-title">Installation Token</div>
-      <div class="modal-desc">Copy the token or use one of the installation commands below. The raw token is shown only once.</div>
-    </div>
+      <div class="modal-desc">Copy the token and use it for one of the installations below. This is a single-use token: it will be permanently deleted upon successful registration or automatically invalidated when it expires.
+      </div>
     <div class="modal-body">
-      <div class="form-group">
+      <div class="form-group" style="margin-top: 16px;">
         <label class="form-label">Raw Token (copy now — not stored)</label>
         <div class="token-box">
           <span class="token-box-val" id="raw-token-val" style="word-break:break-all"></span>
@@ -166,7 +178,7 @@
       <div class="form-group">
         <label class="form-label">Installation Commands</label>
         <div class="tabs" style="margin-bottom:0;border-bottom:none">
-          <button class="tab active" onclick="switchCmdTab('linux')">Linux / curl</button>
+          <button class="tab active" onclick="switchCmdTab('linux')">Linux</button>
           <button class="tab" onclick="switchCmdTab('docker')">Docker</button>
           <button class="tab" onclick="switchCmdTab('kubernetes')">Kubernetes</button>
         </div>
@@ -185,6 +197,7 @@
       <button class="btn btn-primary" onclick="closeModal('modal-show-token')">Done</button>
     </div>
   </div>
+</div>
 </div>
 
 <div id="modal-node-detail" class="modal-backdrop hidden">
@@ -226,7 +239,7 @@ document.getElementById('sidebar-mount').innerHTML = SIDEBAR_HTML;
 const params = new URLSearchParams(location.search);
 const SITE_ID = params.get('id');
 let currentTab = 'nodes';
-let renewingTokenId = null; // Variabile globale per il rinnovo token
+let ws = null; // Variabile globale per la connessione WebSocket
 
 if (!SITE_ID) location.href = 'sites.html';
 
@@ -267,7 +280,6 @@ async function loadNodes() {
       return;
     }
     
-    // MODIFICA QUI: L'onclick ora chiama showNodeDetail invece di cambiare pagina
     tbody.innerHTML = nodes.map(n => `
       <tr class="clickable" onclick="showNodeDetail('${n.id}', '${esc(n.hostname||n.id)}')">
         <td class="td-primary">${esc(n.hostname||n.id)}</td>
@@ -292,7 +304,6 @@ async function loadNodes() {
   }
 }
 
-// Funzione globale per mostrare l'heartbeat
 async function showNodeDetail(nodeId, hostname) {
     document.getElementById('nd-title').textContent = hostname;
     document.getElementById('nd-subtitle').textContent = 'Node ID: ' + nodeId;
@@ -311,16 +322,13 @@ async function showNodeDetail(nodeId, hostname) {
 
         let html = `<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px;margin-bottom:20px;">`;
 
-        // --- CARD 1: SYSTEM INFO ---
         html += `<div class="card" style="padding:16px"><div class="card-title" style="margin-bottom:12px">System Info</div>`;
         html += kvRow('IP Address', latest.ip_address);
         
-        // Estraiamo OS e Versione dagli Extra Data
         if (extra.os_platform) {
             const osStr = (extra.os_version && extra.os_version !== "unknown") 
                 ? `${extra.os_platform} (${extra.os_version})` 
                 : extra.os_platform;
-            // Usiamo capitalize (opzionale) o lo stampiamo così com'è
             html += kvRow('OS', esc(osStr));
         }
 
@@ -328,7 +336,6 @@ async function showNodeDetail(nodeId, hostname) {
         html += kvRow('Disk Usage', fmtPct(latest.disk_usage));
         html += `</div>`;
 
-        // --- CARD 2: EXTRA TELEMETRY ---
         html += `<div class="card" style="padding:16px"><div class="card-title" style="margin-bottom:12px">Extra Telemetry</div>`;
         if(Object.keys(extra).length === 0) {
              html += `<span class="muted" style="font-size:13px">No additional telemetry provided by agent.</span>`;
@@ -341,7 +348,6 @@ async function showNodeDetail(nodeId, hostname) {
         }
         html += `</div></div>`;
 
-        // --- TABELLA HEARTBEAT RECENTI ---
         html += `<div class="card"><div class="card-header"><div class="card-title">Recent Heartbeats</div></div>`;
         html += `<div class="table-wrap"><table><thead><tr><th>Time</th><th>CPU</th><th>RAM</th><th>Disk</th></tr></thead><tbody>`;
         html += heartbeats.map(h => `<tr>
@@ -376,23 +382,18 @@ function renderTokens(tokens) {
     document.getElementById('tokens-list').innerHTML = emptyState('No tokens', 'Create a token to register new nodes');
     return;
   }
-  // MODIFICA QUI: Il bottone renew chiama promptRenewToken
   document.getElementById('tokens-list').innerHTML = tokens.map(t => `
     <div class="token-card">
       <div class="token-header">
         <span class="token-label">${esc(t.label||'Unnamed token')}</span>
         ${tokenBadge(t)}
-        <div style="display:flex;gap:6px">
-          <button class="btn btn-secondary btn-sm" onclick="promptRenewToken('${t.id}', '${esc(t.label||'')}')">Renew</button>
-          <button class="btn btn-ghost btn-sm" style="color:var(--danger)" onclick="deleteToken('${t.id}','${esc(t.label||'token')}')">
-            <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd"/></svg>
-          </button>
-        </div>
+        <button class="btn btn-ghost btn-sm" style="color:var(--danger); margin-left: auto;" onclick="deleteToken('${t.id}','${esc(t.label||'token')}')">
+          <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd"/></svg>
+        </button>
       </div>
       <div class="token-meta">
         <span class="token-meta-item"><strong>ID:</strong> <span class="mono">${esc(t.id)}</span></span>
         <span class="token-meta-item"><strong>Expires:</strong> ${fmtDate(t.expires_at)}</span>
-        ${t.used?'<span class="token-meta-item" style="color:var(--warn)">Already used</span>':''}
       </div>
     </div>`).join('');
 }
@@ -401,11 +402,12 @@ async function createToken() {
   const label = document.getElementById('tok-label').value.trim();
   const expires_in_hours = parseInt(document.getElementById('tok-expires').value);
   const btn = document.getElementById('create-tok-btn');
+  
   btn.disabled = true; btn.textContent = 'Generating…';
   try {
     const resp = await Sites.createToken(SITE_ID, { label: label || null, expires_in_hours });
     closeModal('modal-create-token');
-    // Show the raw token + install commands
+    
     document.getElementById('raw-token-val').textContent = resp.raw_token;
     if (resp.commands) {
       document.getElementById('cmd-linux-val').textContent    = resp.commands.linux    || '';
@@ -415,54 +417,27 @@ async function createToken() {
     openModal('modal-show-token');
     document.getElementById('tok-label').value = '';
     await loadTokens();
-  } catch(e) { toast(e.message, 'error'); }
+  } catch(e) { 
+    toast(e.message, 'error'); 
+  }
   btn.disabled = false; btn.textContent = 'Generate Token';
 }
 
-// NUOVE FUNZIONI PER IL RENEW: Apre il modale e poi esegue
-function promptRenewToken(tokenId, currentLabel) {
-  renewingTokenId = tokenId;
-  // Prepopola il label con quello esistente
-  document.getElementById('renew-tok-label').value = (currentLabel && currentLabel !== 'null') ? currentLabel : '';
-  document.getElementById('renew-tok-expires').value = "24"; // default 24h
-  openModal('modal-renew-token');
-}
-
-async function executeRenewToken() {
-  if (!renewingTokenId) return;
-  const label = document.getElementById('renew-tok-label').value.trim();
-  const expires_in_hours = parseInt(document.getElementById('renew-tok-expires').value);
-  const btn = document.getElementById('do-renew-btn');
-  
-  btn.disabled = true; btn.textContent = 'Renewing...';
-  try {
-    const resp = await Sites.renewToken(SITE_ID, renewingTokenId, { expires_in_hours, label: label || null });
-    closeModal('modal-renew-token');
-    
-    document.getElementById('raw-token-val').textContent = resp.raw_token;
-    if (resp.commands) {
-      document.getElementById('cmd-linux-val').textContent    = resp.commands.linux    || '';
-      document.getElementById('cmd-docker-val').textContent   = resp.commands.docker   || '';
-      document.getElementById('cmd-kubernetes-val').textContent = resp.commands.kubernetes || '';
-    }
-    openModal('modal-show-token');
-    toast('Token renewed — copy the new value');
-    await loadTokens();
-  } catch(e) { toast(e.message, 'error'); }
-  
-  btn.disabled = false; btn.textContent = 'Renew Token';
-}
-
-
 function deleteToken(id, label) {
-  confirmAction('Delete Token', `Delete token "${label}"? Any nodes using this token won't be able to re-register.`, async () => {
-    try { await Sites.deleteToken(SITE_ID, id); toast('Token deleted'); await loadTokens(); }
-    catch(e) { toast(e.message, 'error'); }
+  confirmAction('Delete Token', `Delete token "${label}"? Any pending registrations using this token will fail.`, async () => {
+    try { 
+      await Sites.deleteToken(SITE_ID, id); 
+      toast('Token deleted'); 
+      await loadTokens(); 
+    }
+    catch(e) { 
+      toast(e.message, 'error'); 
+    }
   });
 }
 
 function deleteNode(id, name) {
-  confirmAction('Delete Node', `Delete node "${name}"? The registration token will be recycled.`, async () => {
+  confirmAction('Delete Node', `Delete node "${name}"? The agent will be permanently revoked and blocked from reconnecting.`, async () => {
     try { await Nodes.delete(id); toast('Node deleted'); await loadNodes(); }
     catch(e) { toast(e.message, 'error'); }
   });
@@ -479,9 +454,62 @@ function switchTab(tab) {
   currentTab = tab;
   document.getElementById('tab-nodes').classList.toggle('hidden', tab !== 'nodes');
   document.getElementById('tab-tokens').classList.toggle('hidden', tab !== 'tokens');
+  document.getElementById('tab-live').classList.toggle('hidden', tab !== 'live');
+  
   document.querySelectorAll('#main-tabs .tab').forEach((el, i) => {
-    el.classList.toggle('active', (i===0 && tab==='nodes') || (i===1 && tab==='tokens'));
+    el.classList.toggle('active', 
+      (i===0 && tab==='nodes') || 
+      (i===1 && tab==='tokens') ||
+      (i===2 && tab==='live')
+    );
   });
+
+  if (tab === 'live') {
+      connectWebSocket();
+  } else {
+      if (ws) {
+          ws.close();
+          ws = null;
+      }
+      document.getElementById('ws-status-badge').textContent = 'Disconnected';
+      document.getElementById('ws-status-badge').style.background = 'var(--gray-100)';
+      document.getElementById('ws-status-badge').style.color = 'var(--gray-600)';
+  }
+}
+
+function connectWebSocket() {
+    if (ws) return;
+    const terminal = document.getElementById('ws-terminal'), badge = document.getElementById('ws-status-badge');
+    const wsUrl = `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}/ws/sites/${SITE_ID}/stream`;
+
+    terminal.innerHTML += `<div class="terminal-line"><span class="term-time">[System]</span> <span class="term-warn">Connecting to ${wsUrl}...</span></div>`;
+    ws = new WebSocket(wsUrl);
+
+    ws.onopen = () => {
+        terminal.innerHTML += `<div class="terminal-line"><span class="term-time">[System]</span> <span class="term-success">Connected.</span></div>`;
+        badge.textContent = 'Live'; badge.style.cssText = "background:var(--success);color:var(--white)";
+    };
+
+    ws.onmessage = (event) => {
+        const d = JSON.parse(event.data), t = new Date(d.timestamp).toLocaleTimeString();
+        let h = d.event_type === "heartbeat" 
+            ? `<div class="terminal-line"><span class="term-time">[${t}]</span> <span class="term-info">PING</span> <strong>${esc(d.hostname)}</strong> → CPU: ${d.telemetry.cpu_usage.toFixed(1)}%</div>`
+            : `<div class="terminal-line"><span class="term-time">[${t}]</span> <span class="term-success">REG</span> <strong>${esc(d.hostname)}</strong> joined.</div>`;
+        
+        terminal.innerHTML += h;
+        const lines = terminal.getElementsByClassName('terminal-line');
+        if (lines.length > 30) terminal.removeChild(lines[0]);
+        scrollToBottom(terminal);
+    };
+
+    ws.onclose = () => {
+        terminal.innerHTML += `<div class="terminal-line"><span class="term-err">Closed.</span></div>`;
+        ws = null; badge.textContent = 'Disconnected'; badge.style.cssText = "background:var(--danger);color:var(--white)";
+    };
+}
+
+function scrollToBottom(element) {
+    element.scrollTop = element.scrollHeight;
 }
 
 function switchCmdTab(name) {

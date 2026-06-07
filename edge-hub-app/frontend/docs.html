@@ -54,14 +54,15 @@
             </p>
             <p class="doc-text" style="font-weight: 500; margin-top: 16px;">Registration Flow:</p>
             <ul class="doc-list">
-              <li>Upon initial execution, the agent utilizes a temporary provisioning token to authenticate against the backend API.</li>
-              <li>The backend validates the token, registers the hardware metadata, and issues a persistent JSON Web Token (JWT).</li>
+              <li>Upon initial execution, the agent utilizes a <strong>single-use provisioning token</strong> to authenticate against the backend API.</li>
+              <li>Once validated, the backend <strong>immediately destroys the token</strong> to prevent reuse, registers the hardware metadata, and issues a persistent JSON Web Token (JWT).</li>
               <li>This JWT is stored locally within the node's filesystem (<code>edgehub-state.json</code>).</li>
               <li>During subsequent service restarts, the agent bypasses the registration phase entirely, utilizing the stored JWT to immediately resume telemetry transmission.</li>
             </ul>
             <p class="doc-text" style="font-weight: 500; margin-top: 16px; color: var(--danger);">Security & Revocation:</p>
             <ul class="doc-list">
-              <li>In the event that a node or its locally stored JWT is compromised, administrators can simply delete the node via the EdgeHub dashboard. This action instantly invalidates the JWT on the backend, permanently revoking the compromised agent's access to the system.</li>
+              <li>If a node is compromised, administrators can delete it via the EdgeHub dashboard. This instantly invalidates the JWT on the backend.</li>
+              <li><strong>Self-Cleanup Protocol:</strong> Upon receiving a <code>401 Unauthorized</code> response, the revoked agent automatically deletes its local state file and gracefully halts, preventing zombie processes and bandwidth waste.</li>
             </ul>
           </div>
         </div>
@@ -93,7 +94,7 @@
             <ul class="doc-list">
               <li><strong>Linux Native (Systemd):</strong> Executed as a root-level background daemon. Designed for bare-metal servers, virtual machines, and IoT devices (e.g., Raspberry Pi).</li>
               <li><strong>Docker Compose:</strong> Operates within an isolated container environment. It requires read-only mounts of host system volumes to accurately calculate underlying hardware utilization.</li>
-              <li><strong>Kubernetes (DaemonSet):</strong> Deployed cluster-wide to ensure a single agent instance runs on every physical or virtual node, with automatic lifecycle management handled by the Kubelet.</li>
+              <li><strong>Kubernetes:</strong> Can be deployed as a DaemonSet to ensure a single agent instance runs on every physical or virtual node, monitoring the underlying cluster infrastructure.</li>
             </ul>
           </div>
         </div>

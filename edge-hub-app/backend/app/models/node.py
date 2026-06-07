@@ -21,12 +21,7 @@ class Node(Base):
     id: Mapped[str] = mapped_column(String, primary_key=True)
     site_id: Mapped[str] = mapped_column(ForeignKey("sites.id", ondelete="CASCADE"), index=True)
     
-    # Riferimento al token che ha creato questo nodo
-    token_id: Mapped[str | None] = mapped_column(
-        ForeignKey("registration_tokens.id", ondelete="SET NULL"),
-        nullable=True,
-        unique=True
-    )
+    # Rimosso token_id e foreign key
 
     hostname: Mapped[str] = mapped_column(String(256))
     description: Mapped[str | None] = mapped_column(String(512), nullable=True)
@@ -45,12 +40,7 @@ class Node(Base):
 
     # Relazioni
     site: Mapped["Site"] = relationship(back_populates="nodes")
-
-    token: Mapped["RegistrationToken | None"] = relationship(
-        "RegistrationToken", 
-        back_populates="node",
-        foreign_keys=[token_id]
-    )
+    # Rimossa la relazione con il token
     heartbeats: Mapped[list["Heartbeat"]] = relationship(
         back_populates="node", 
         cascade="all, delete-orphan"

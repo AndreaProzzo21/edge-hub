@@ -4,18 +4,14 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-# Importiamo la dipendenza per la sessione web (cookie)
 from ...core.security import get_admin_session
 from ...infrastructure.database import get_db
 from ...models.heartbeat import Heartbeat
 from ...models.node import Node
 from ...schemas.node import NodeResponse, NodePatch
 from ...schemas.heartbeat import HeartbeatRecord
-from app.services.node_manager import delete_node_and_recycle_token
 
 router = APIRouter(prefix="/nodes", tags=["nodes"])
-
-# Questa dipendenza proteggerà le rotte tramite Cookie HttpOnly
 AdminSessionDep = Depends(get_admin_session)
 
 
@@ -50,15 +46,16 @@ async def patch_node(
     return node
 
 
-@router.delete("/{node_id}")
+@router.delete("/{node_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def remove_node(node_id: str, db: AsyncSession = Depends(get_db)):
-    try:
-        await delete_node_and_recycle_token(db, node_id)
-        return {"message": "Nodo eliminato e token riciclato con successo"}
-    except ValueError:
+    """Elimina il nodo e, tramite CASCADE, tutti i suoi heartbeat."""
+    node = await db.get(Node, node_id)
+    if not node:
         raise HTTPException(status_code=404, detail="Nodo non trovato")
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    
+    await db.delete(node)
+    await db.commit()
+    return
 
 
 @router.get("/{node_id}/heartbeats", response_model=list[HeartbeatRecord], dependencies=[AdminSessionDep])
