@@ -92,7 +92,7 @@ EDGEHUB_HOSTNAME="$REPLY"
 _prompt "Node Description" "Docker Edge Node"
 EDGEHUB_DESC="$REPLY"
 
-_prompt "Heartbeat Interval (seconds)" "30"
+_prompt "Heartbeat Interval (seconds: max 90)" "30"
 EDGEHUB_INTERVAL="$REPLY"
 
 # --- 3. WORKSPACE & DOWNLOAD ---

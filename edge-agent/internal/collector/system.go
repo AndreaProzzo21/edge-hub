@@ -25,15 +25,23 @@ func CollectSystemMetrics(agentMode string) *models.HeartbeatRequest {
 	// 2. Read RAM
 	vMem, _ := mem.VirtualMemory()
 	memVal := 0.0
+	memTotal := 0.0
+	memAvail := 0.0
 	if vMem != nil {
 		memVal = vMem.UsedPercent
+		memTotal = float64(vMem.Total) / 1024 / 1024 / 1024
+		memAvail = float64(vMem.Available) / 1024 / 1024 / 1024
 	}
 
 	// 3. Read Disk (root partition)
 	dUsage, _ := disk.Usage("/")
 	diskVal := 0.0
+	diskTotal := 0.0
+	diskFree := 0.0
 	if dUsage != nil {
 		diskVal = dUsage.UsedPercent
+		diskTotal = float64(dUsage.Total) / 1024 / 1024 / 1024
+		diskFree = float64(dUsage.Free) / 1024 / 1024 / 1024
 	}
 
 	// 4. Read Uptime & Host Info
@@ -41,10 +49,23 @@ func CollectSystemMetrics(agentMode string) *models.HeartbeatRequest {
 	uptime := float64(0)
 	platform := "unknown"
 	platformVer := "unknown"
+	cpuModel := "unknown"
+	kernelVer := "unknown"
+	hostID := "unknown"
+
 	if hInfo != nil {
 		uptime = float64(hInfo.Uptime)
-		platform = hInfo.Platform           // es. "ubuntu", "debian"
-		platformVer = hInfo.PlatformVersion // es. "22.04"
+		platform = hInfo.Platform
+		platformVer = hInfo.PlatformVersion
+		cpuModel = hInfo.Hostname // fallback initial
+		kernelVer = hInfo.KernelVersion
+		hostID = hInfo.HostID
+	}
+	
+	// Otteniamo informazioni specifiche CPU
+	cpuInfo, _ := cpu.Info()
+	if len(cpuInfo) > 0 {
+		cpuModel = cpuInfo[0].ModelName
 	}
 
 	// --- EXTRA TELEMETRY (Universale per ogni tipo di deploy) ---
@@ -67,7 +88,7 @@ func CollectSystemMetrics(agentMode string) *models.HeartbeatRequest {
 
 	// D. Network I/O (Total bytes sent/received)
 	var bytesSent, bytesRecv uint64
-	netIO, _ := psnet.IOCounters(false) // false = somma di tutte le interfacce di rete
+	netIO, _ := psnet.IOCounters(false)
 	if len(netIO) > 0 {
 		bytesSent = netIO[0].BytesSent
 		bytesRecv = netIO[0].BytesRecv
@@ -75,16 +96,23 @@ func CollectSystemMetrics(agentMode string) *models.HeartbeatRequest {
 
 	// 5. Build Extra Data
 	extra := map[string]interface{}{
-		"agent_mode":     agentMode,
-		"os_platform":    platform,
-		"os_version":     platformVer,
-		"cpu_cores":      cores,
-		"process_count":  processCount,
-		"load_avg_1m":    load1,
-		"load_avg_5m":    load5,
-		"load_avg_15m":   load15,
-		"net_bytes_sent": bytesSent,
-		"net_bytes_recv": bytesRecv,
+		"agent_mode":       agentMode,
+		"host_id":          hostID,        // Aggiunto per tracciare univocamente la macchina
+		"os_platform":      platform,
+		"os_version":       platformVer,
+		"kernel_version":   kernelVer,     // Aggiunto per check di sicurezza/vulnerabilità
+		"cpu_model":        cpuModel,
+		"cpu_cores":        cores,
+		"mem_total_gb":     memTotal,
+		"mem_available_gb": memAvail,
+		"disk_total_gb":    diskTotal,     // Aggiunto per monitoraggio capienza
+		"disk_free_gb":     diskFree,      // Aggiunto per alerting spazio in esaurimento
+		"process_count":    processCount,
+		"load_avg_1m":      load1,
+		"load_avg_5m":      load5,
+		"load_avg_15m":     load15,
+		"net_bytes_sent":   bytesSent,
+		"net_bytes_recv":   bytesRecv,
 	}
 
 	// Payload matching exactly the FastAPI expectations

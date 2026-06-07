@@ -8,8 +8,8 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"time"
 	"path/filepath"
+	"time"
 
 	"github.com/avalab/edgehub-agent/internal/config"
 	"github.com/avalab/edgehub-agent/internal/models"
@@ -32,7 +32,7 @@ func NewEdgeClient(cfg *config.Config) *EdgeClient {
 	return &EdgeClient{
 		Config: cfg,
 		HTTPClient: &http.Client{
-			Timeout: 10 * time.Second, // Safety timeout to avoid blocking the agent
+			Timeout: 10 * time.Second,
 		},
 	}
 }
@@ -44,9 +44,9 @@ func (c *EdgeClient) Init() {
 		return
 	}
 
-	log.Println("INFO: No local state found. Starting node registration...")
+	log.Println("INFO: No valid local state found. Starting node registration...")
 	if c.Config.Token == "" {
-		log.Fatalf("FATAL: EDGEHUB_TOKEN not provided. Cannot perform initial registration.")
+		log.Fatalf("FATAL: EDGEHUB_TOKEN not provided and no valid state found. Cannot proceed.")
 	}
 
 	err := c.Register()
@@ -59,7 +59,7 @@ func (c *EdgeClient) Init() {
 func (c *EdgeClient) loadState() bool {
 	data, err := os.ReadFile(c.Config.StateFile)
 	if err != nil {
-		return false // File does not exist or is not readable
+		return false
 	}
 
 	var state agentState
@@ -76,22 +76,18 @@ func (c *EdgeClient) loadState() bool {
 }
 
 func (c *EdgeClient) saveState(token string) error {
-    state := agentState{AgentToken: token}
-    data, err := json.MarshalIndent(state, "", "  ")
-    if err != nil {
-        return err
-    }
-    
-    // 1. Estrai il percorso della cartella dal nome del file
-    dir := filepath.Dir(c.Config.StateFile)
-    
-    // 2. Crea la cartella (se non esiste) con i giusti permessi
-    if err := os.MkdirAll(dir, 0755); err != nil {
-        return fmt.Errorf("impossibile creare la directory di stato: %w", err)
-    }
+	state := agentState{AgentToken: token}
+	data, err := json.MarshalIndent(state, "", "  ")
+	if err != nil {
+		return err
+	}
 
-    // 3. Salva il file (0644 permette all'utente di scrivere e agli altri di leggere)
-    return os.WriteFile(c.Config.StateFile, data, 0644)
+	dir := filepath.Dir(c.Config.StateFile)
+	if err := os.MkdirAll(dir, 0755); err != nil {
+		return fmt.Errorf("impossibile creare la directory di stato: %w", err)
+	}
+
+	return os.WriteFile(c.Config.StateFile, data, 0644)
 }
 
 // Register sends the registration request to the backend
@@ -135,10 +131,7 @@ func (c *EdgeClient) Register() error {
 		return fmt.Errorf("response decoding error: %w", err)
 	}
 
-	// 1. Save the token in memory
 	c.jwtToken = respData.AgentToken
-
-	// 2. Save the token to file for future reboots
 	if err := c.saveState(c.jwtToken); err != nil {
 		return fmt.Errorf("failed to save local state: %w", err)
 	}
@@ -147,7 +140,7 @@ func (c *EdgeClient) Register() error {
 	return nil
 }
 
-// SendHeartbeat sends current metrics. Also handles the 401 Unauthorized logic.
+// SendHeartbeat sends current metrics. Handles the 401 Unauthorized logic (Revocation).
 func (c *EdgeClient) SendHeartbeat(payload *models.HeartbeatRequest) error {
 	endpoint := fmt.Sprintf("%s/api/v1/agents/heartbeat", c.Config.BackendURL)
 
@@ -161,7 +154,6 @@ func (c *EdgeClient) SendHeartbeat(payload *models.HeartbeatRequest) error {
 		return err
 	}
 
-	// Add our "Company Badge"
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "Bearer "+c.jwtToken)
 
@@ -171,9 +163,10 @@ func (c *EdgeClient) SendHeartbeat(payload *models.HeartbeatRequest) error {
 	}
 	defer resp.Body.Close()
 
-	// REVOCATION LOGIC (SECURITY)
+	// REVOCATION LOGIC: The node was deleted from the dashboard.
+	// We keep the state file so the agent doesn't try to re-register endlessly.
 	if resp.StatusCode == http.StatusUnauthorized {
-		log.Fatalf("FATAL: Access denied (401). The node was deleted from the dashboard or the token is revoked. The agent will stop.")
+		log.Fatalf("FATAL: 401 Unauthorized. Node has been revoked or deleted on the server. Agent stopped.")
 	}
 
 	if resp.StatusCode != http.StatusOK {
