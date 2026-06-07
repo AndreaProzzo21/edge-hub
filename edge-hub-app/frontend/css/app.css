@@ -118,7 +118,13 @@ img{max-width:100%;display:block}
 .nav-link.active{background:var(--accent-lt);color:var(--accent);font-weight:600}
 .nav-link.active svg{opacity:1}
 .sidebar-footer{padding:10px 10px 14px;border-top:1px solid var(--gray-200)}
-
+.truncate-desc {
+    max-width: 200px; /* Imposta il limite che preferisci */
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: block;
+}
 
 /* ── Topbar ──────────────────────────────────────────────── */
 .topbar{
@@ -231,6 +237,8 @@ img{max-width:100%;display:block}
 .badge-neutral{background:var(--gray-100);color:var(--gray-600);border-color:var(--gray-200)}
 .badge-online .bdot {background:var(--ok);    animation:pulse-ring 2s ease infinite}
 .badge-offline .bdot{background:var(--gray-400)}
+.badge-warn .bdot   { background: var(--warn); }
+.badge-danger .bdot { background: var(--danger); }
 @keyframes pulse-ring{0%,100%{box-shadow:0 0 0 0 rgba(22,163,74,.35)}50%{box-shadow:0 0 0 4px rgba(22,163,74,0)}}
 
 /* ── Table ───────────────────────────────────────────────── */

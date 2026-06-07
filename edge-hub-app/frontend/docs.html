@@ -94,7 +94,7 @@
             <ul class="doc-list">
               <li><strong>Linux Native (Systemd):</strong> Executed as a root-level background daemon. Designed for bare-metal servers, virtual machines, and IoT devices (e.g., Raspberry Pi).</li>
               <li><strong>Docker Compose:</strong> Operates within an isolated container environment. It requires read-only mounts of host system volumes to accurately calculate underlying hardware utilization.</li>
-              <li><strong>Kubernetes:</strong> Can be deployed as a DaemonSet to ensure a single agent instance runs on every physical or virtual node, monitoring the underlying cluster infrastructure.</li>
+              <li><strong>Kubernetes:</strong> It is recommended to deploy the Kubernetes agent as a standard Deployment on a single node to interface with the cluster API. For the remaining nodes (workers/masters), deploy the Linux native agent to handle basic telemetry and heartbeats independently.</li>
             </ul>
           </div>
         </div>
@@ -103,7 +103,7 @@
           <div class="card-header" style="background: var(--gray-50); border-bottom: 1px solid var(--gray-200);">
             <div>
               <div class="card-title">Developer API</div>
-              <div class="card-subtitle">OpenAPI Specification</div>
+              <div class="card-subtitle">Official Documentation</div>
             </div>
           </div>
           <div class="card-body" style="display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 40px 20px;">
@@ -112,10 +112,10 @@
             </svg>
             <h3 style="font-size: 15px; font-weight: 600; margin: 0 0 8px 0; color: var(--gray-900);">REST API Documentation</h3>
             <p class="doc-text" style="margin-bottom: 20px; font-size: 13px;">
-              The backend exposes fully documented auto-generated OpenAPI schemas.
+              Comprehensive documentation and implementation guides for the EdgeHub REST API.
             </p>
-            <a href="/docs" target="_blank" class="btn btn-secondary">
-              Open Swagger UI
+            <a href="https://yourusername.github.io/edgehub-docs" target="_blank" class="btn btn-secondary">
+              View Documentation
               <svg viewBox="0 0 20 20" fill="currentColor" style="margin-left:6px; width:14px; height:14px;"><path d="M11 3a1 1 0 100 2h2.586l-6.293 6.293a1 1 0 101.414 1.414L15 6.414V9a1 1 0 102 0V4a1 1 0 00-1-1h-5z"/><path d="M5 5a2 2 0 00-2 2v8a2 2 0 002 2h8a2 2 0 002-2v-3a1 1 0 10-2 0v3H5V7h3a1 1 0 000-2H5z"/></svg>
             </a>
           </div>

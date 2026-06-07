@@ -34,7 +34,7 @@
         <div class="table-wrap">
           <table>
             <thead><tr>
-              <th>Hostname</th><th>Status</th><th>Site ID</th><th>Agent</th><th>Last Seen</th><th></th>
+              <th>Hostname</th><th>Status</th><th>Site ID</th><th>Description</th><th>Agent</th><th>Last Seen</th><th></th>
             </tr></thead>
             <tbody id="nodes-tbody">
               <tr><td colspan="6"><div class="loader-row"><div class="spinner"></div> Loading…</div></td></tr>
@@ -112,16 +112,20 @@ function renderNodes(list) {
     document.getElementById('node-count').textContent = list.length + ' node' + (list.length!==1?'s':'');
     const tbody = document.getElementById('nodes-tbody');
     if (!list.length) {
-      tbody.innerHTML = `<tr><td colspan="6">${emptyState('No nodes found', 'Adjust search or register nodes')}</td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="7">${emptyState('No nodes found', 'Adjust search or register nodes')}</td></tr>`;
       return;
     }
     
-    // MODIFICATO: onClick sulla riga apre il dettaglio, event.stopPropagation() nei bottoni per non sovrapporsi
     tbody.innerHTML = list.map(n => `
       <tr class="clickable" onclick="showNodeDetail('${n.id}', '${esc(n.hostname||n.id)}')">
         <td class="td-primary">${esc(n.hostname||n.id)}</td>
         <td>${statusBadge(n.status, n.offline_cycles, n.offline_alert_sent)}</td>
         <td class="mono muted">${esc(n.site_id)}</td>
+        <td>
+           <span class="truncate-desc" title="${esc(n.description || '')}">
+               ${esc(n.description || '—')}
+           </span>
+        </td>
         <td>${agentTypeBadge(n.agent_type)}</td>
         <td class="mono muted">${relTime(n.last_seen)}</td>
         <td class="row justify-end" style="gap:4px">
