@@ -18,7 +18,7 @@ def generate_installation_commands(request: Request, raw_token: str) -> dict:
     return {
         "linux": "curl -sSL https://raw.githubusercontent.com/AndreaProzzo21/edge-hub/main/edge-agent/scripts/install-linux.sh | sudo bash",
         "docker": "curl -sSL https://raw.githubusercontent.com/AndreaProzzo21/edge-hub/main/edge-agent/scripts/install-docker.sh | sudo bash",
-        "kubernetes": "curl -sSL https://raw.githubusercontent.com/AndreaProzzo21/edge-hub/main/edge-agent/scripts/install-k8s.sh | sudo bash",
+        "kubernetes": "curl -sSL https://raw.githubusercontent.com/AndreaProzzo21/edge-hub/main/edge-agent/scripts/install-k8s.sh | bash",
     }
 
 
