@@ -5,7 +5,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from .settings import settings
+from .core.config import settings
 
 from .infrastructure.database import create_tables
 from .services.offline_detector import offline_detector_loop
