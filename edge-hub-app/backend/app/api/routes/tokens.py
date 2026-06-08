@@ -17,9 +17,9 @@ def generate_installation_commands(request: Request, raw_token: str) -> dict:
     base_url = str(request.base_url).rstrip("/")
 
     return {
-        "linux": f"EDGEHUB_URL='{base_url}' EDGEHUB_TOKEN='{raw_token}' bash <(curl -sSL https://raw.githubusercontent.com/AndreaProzzo21/edge-hub/main/edge-agent/scripts/install-linux.sh)",
-        "docker": f"EDGEHUB_URL='{base_url}' EDGEHUB_TOKEN='{raw_token}' bash <(curl -sSL https://raw.githubusercontent.com/AndreaProzzo21/edge-hub/main/edge-agent/scripts/install-docker.sh)",
-        "kubernetes": f"EDGEHUB_URL='{base_url}' EDGEHUB_TOKEN='{raw_token}' bash <(curl -sSL https://raw.githubusercontent.com/AndreaProzzo21/edge-hub/main/edge-agent/scripts/install-k8s.sh)",
+        "linux": f"curl -sSL https://raw.githubusercontent.com/AndreaProzzo21/edge-hub/main/edge-agent/scripts/install-linux.sh -o /tmp/install-linux.sh && EDGEHUB_URL='{base_url}' EDGEHUB_TOKEN='{raw_token}' sudo -E bash /tmp/install-linux.sh",
+        "docker": f"curl -sSL https://raw.githubusercontent.com/AndreaProzzo21/edge-hub/main/edge-agent/scripts/install-docker.sh -o /tmp/install-docker.sh && EDGEHUB_URL='{base_url}' EDGEHUB_TOKEN='{raw_token}' sudo -E bash /tmp/install-docker.sh",
+        "kubernetes": f"curl -sSL https://raw.githubusercontent.com/AndreaProzzo21/edge-hub/main/edge-agent/scripts/install-k8s.sh -o /tmp/install-k8s.sh && EDGEHUB_URL='{base_url}' EDGEHUB_TOKEN='{raw_token}' bash /tmp/install-k8s.sh",
     }
 
 
