@@ -13,12 +13,15 @@ router = APIRouter(prefix="/sites", tags=["tokens"])
 
 AdminSessionDep = Depends(get_admin_session)
 
-# Helper per generare i comandi
 def generate_installation_commands(request: Request, raw_token: str) -> dict:
+    # Estrae l'URL di base (es. https://edgehub.dominio.com o http://localhost)
+    # Rimuoviamo il suffix dello path dell'API per dare l'URL radice pulito
+    base_url = str(request.base_url).rstrip("/")
+
     return {
-        "linux": "curl -sSL https://raw.githubusercontent.com/AndreaProzzo21/edge-hub/main/edge-agent/scripts/install-linux.sh | sudo bash",
-        "docker": "curl -sSL https://raw.githubusercontent.com/AndreaProzzo21/edge-hub/main/edge-agent/scripts/install-docker.sh | sudo bash",
-        "kubernetes": "curl -sSL https://raw.githubusercontent.com/AndreaProzzo21/edge-hub/main/edge-agent/scripts/install-k8s.sh | bash",
+        "linux": f"EDGEHUB_URL='{base_url}' EDGEHUB_TOKEN='{raw_token}' bash -c '$(curl -sSL https://raw.githubusercontent.com/AndreaProzzo21/edge-hub/main/edge-agent/scripts/install-linux.sh)'",
+        "docker": f"EDGEHUB_URL='{base_url}' EDGEHUB_TOKEN='{raw_token}' bash -c '$(curl -sSL https://raw.githubusercontent.com/AndreaProzzo21/edge-hub/main/edge-agent/scripts/install-docker.sh)'",
+        "kubernetes": f"EDGEHUB_URL='{base_url}' EDGEHUB_TOKEN='{raw_token}' bash -c '$(curl -sSL https://raw.githubusercontent.com/AndreaProzzo21/edge-hub/main/edge-agent/scripts/install-k8s.sh)'"
     }
 
 
