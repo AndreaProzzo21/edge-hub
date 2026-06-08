@@ -1,0 +1,100 @@
+---
+# 1. Service Account
+# Identità con cui il Pod comunicherà con l'API Server di Kubernetes
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: edgehub-agent-sa
+  namespace: edgehub-system
+
+---
+# 2. ClusterRole
+# Definisce QUALI permessi ha l'agente (sola lettura su Pods, Deployments e Nodes)
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: edgehub-agent-role
+rules:
+  - apiGroups: [""]
+    resources: ["pods", "nodes"]
+    verbs: ["get", "list"]
+  - apiGroups: ["apps"]
+    resources: ["deployments"]
+    verbs: ["get", "list"]
+
+---
+# 3. ClusterRoleBinding
+# Associa il ClusterRole al ServiceAccount creato sopra
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: edgehub-agent-rolebinding
+subjects:
+  - kind: ServiceAccount
+    name: edgehub-agent-sa
+    namespace: edgehub-system # Deve coincidere con il namespace dello script
+roleRef:
+  kind: ClusterRole
+  name: edgehub-agent-role
+  apiGroup: rbac.authorization.k8s.io
+
+---
+# 4. Persistent Volume Claim (PVC)
+# Un minuscolo spazio disco per salvare il file edgehub-state.json (il Token JWT)
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: edgehub-agent-pvc
+  namespace: edgehub-system
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 100Mi # È sufficiente per un singolo file JSON
+
+---
+# 5. Deployment
+# Il vero e proprio carico di lavoro
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: edgehub-agent
+  namespace: edgehub-system
+  labels:
+    app: edgehub-agent
+spec:
+  replicas: 1 # Consigliata una sola replica per cluster (raccoglie metriche globali)
+  selector:
+    matchLabels:
+      app: edgehub-agent
+  template:
+    metadata:
+      labels:
+        app: edgehub-agent
+    spec:
+      serviceAccountName: edgehub-agent-sa
+      containers:
+        - name: agent
+          image: aprozzo/edgehub-agent:latest
+          imagePullPolicy: Always
+          # Le variabili d'ambiente vengono pescate dal Secret generato dallo script bash
+          envFrom:
+            - secretRef:
+                name: edgehub-agent-config
+          # Montaggio del volume persistente per la cartella data
+          volumeMounts:
+            - name: edgehub-data
+              mountPath: /data
+          # Limiti di risorse per evitare che l'agente consumi troppo sul nodo
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 100m
+              memory: 128Mi
+      volumes:
+        - name: edgehub-data
+          persistentVolumeClaim:
+            claimName: edgehub-agent-pvc
