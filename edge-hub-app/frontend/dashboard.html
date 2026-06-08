@@ -191,10 +191,10 @@ async function loadAll() {
         <thead>
           <tr>
             <th>Node</th>
-            <th>Site</th>
+            <th>Site ID</th>
             <th>CPU</th>
             <th>RAM</th>
-            <th>Disk</th>
+            <th>Uptime</th>
           </tr>
         </thead>
         <tbody>
@@ -206,14 +206,14 @@ async function loadAll() {
                   ${esc(n.hostname||n.id)}
                 </div>
               </td>
-              <td class="mono muted">${esc(sites.find(s=>s.id===n.site_id)?.name || n.site_id || '—')}</td>
+              <td class="mono muted">${esc(n.site_id || '—')}</td>
               <td style="min-width:110px">
                 <div class="row" style="gap:7px"><div class="prog"><div class="prog-bar ${barCls(n.cpu_usage)}" style="width:${Math.min(n.cpu_usage||0,100)}%"></div></div><span class="mono">${fmtPct(n.cpu_usage)}</span></div>
               </td>
               <td style="min-width:110px">
                 <div class="row" style="gap:7px"><div class="prog"><div class="prog-bar ${barCls(n.mem_usage)}" style="width:${Math.min(n.mem_usage||0,100)}%"></div></div><span class="mono">${fmtPct(n.mem_usage)}</span></div>
               </td>
-              <td class="mono muted">${fmtPct(n.disk_usage)}</td>
+              <td class="mono muted">${fmtUptime(n.uptime_seconds)}</td>
             </tr>
           `).join('')}
         </tbody>
