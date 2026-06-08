@@ -76,13 +76,24 @@ fi
 
 # --- 2. CONFIGURATION ---
 _step "Configuration"
-_prompt "Backend URL (e.g. https://api.edgehub.io)" ""
-EDGEHUB_URL="$REPLY"
 
-_prompt "Registration Token" ""
-EDGEHUB_TOKEN="$REPLY"
+# Controllo dinamico per EDGEHUB_URL
+if [[ -z "${EDGEHUB_URL:-}" ]]; then
+  _prompt "Backend URL (e.g. https://api.edgehub.io)" ""
+  EDGEHUB_URL="$REPLY"
+else
+  _ok "Backend URL automatically applied: ${EDGEHUB_URL}"
+fi
 
-_prompt "Node Name" ""
+# Controllo dinamico per EDGEHUB_TOKEN
+if [[ -z "${EDGEHUB_TOKEN:-}" ]]; then
+  _prompt "Registration Token" ""
+  EDGEHUB_TOKEN="$REPLY"
+else
+  _ok "Registration Token automatically applied."
+fi
+
+_prompt "Node Name" "$(hostname)"
 EDGEHUB_HOSTNAME="$REPLY"
 
 _prompt "Node Description" "Linux Edge Node"
@@ -148,7 +159,7 @@ _ok "Service ${SERVICE_NAME} started and enabled on boot"
 
 # --- 6. DONE ---
 echo -e "\n ${BGREEN}╔══════════════════════════════════════════════════════╗${C0}"
-echo -e " ${BGREEN}║${C0}  ${BOLD}Edge Agent installed and running successfully!${C0}        ${BGREEN}║${C0}"
+echo -e " ${BGREEN}║${C0}  ${BOLD}Edge Agent installed and running successfully!${C0}      ${BGREEN}║${C0}"
 echo -e " ${BGREEN}╚══════════════════════════════════════════════════════╝${C0}\n"
 echo -e "  ${DIM}Check status :${C0} systemctl status ${SERVICE_NAME}.service"
 echo -e "  ${DIM}View logs    :${C0} journalctl -u ${SERVICE_NAME}.service -f"

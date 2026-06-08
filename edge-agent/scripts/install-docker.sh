@@ -80,13 +80,24 @@ _ok "Docker and ${DOCKER_CMD} found"
 
 # --- 2. CONFIGURATION ---
 _step "Configuration"
-_prompt "Backend URL (e.g. https://api.edgehub.io)" ""
-EDGEHUB_URL="$REPLY"
 
-_prompt "Registration Token" ""
-EDGEHUB_TOKEN="$REPLY"
+# Controllo dinamico per EDGEHUB_URL
+if [[ -z "${EDGEHUB_URL:-}" ]]; then
+  _prompt "Backend URL (e.g. https://api.edgehub.io)" ""
+  EDGEHUB_URL="$REPLY"
+else
+  _ok "Backend URL automatically applied: ${EDGEHUB_URL}"
+fi
 
-_prompt "Node Name" ""
+# Controllo dinamico per EDGEHUB_TOKEN
+if [[ -z "${EDGEHUB_TOKEN:-}" ]]; then
+  _prompt "Registration Token" ""
+  EDGEHUB_TOKEN="$REPLY"
+else
+  _ok "Registration Token automatically applied."
+fi
+
+_prompt "Node Name" "$(hostname)"
 EDGEHUB_HOSTNAME="$REPLY"
 
 _prompt "Node Description" "Docker Edge Node"
@@ -126,7 +137,7 @@ _ok "Container started"
 
 # --- 6. DONE ---
 echo -e "\n ${BGREEN}╔══════════════════════════════════════════════════════╗${C0}"
-echo -e " ${BGREEN}║${C0}  ${BOLD}Edge Agent deployed and running successfully!${C0}         ${BGREEN}║${C0}"
+echo -e " ${BGREEN}║${C0}  ${BOLD}Edge Agent deployed and running successfully!${C0}       ${BGREEN}║${C0}"
 echo -e " ${BGREEN}╚══════════════════════════════════════════════════════╝${C0}\n"
 echo -e "  ${DIM}Check status :${C0} cd ${INSTALL_DIR} && ${DOCKER_CMD} ps"
 echo -e "  ${DIM}View logs    :${C0} cd ${INSTALL_DIR} && ${DOCKER_CMD} logs -f edge-agent"

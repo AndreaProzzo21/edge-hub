@@ -79,11 +79,21 @@ _step "Configuration"
 _prompt "Namespace to deploy into" "edgehub-system"
 EDGEHUB_NAMESPACE="$REPLY"
 
-_prompt "Backend URL (e.g. https://api.edgehub.io)" ""
-EDGEHUB_URL="$REPLY"
+# Controllo dinamico per EDGEHUB_URL
+if [[ -z "${EDGEHUB_URL:-}" ]]; then
+  _prompt "Backend URL (e.g. https://api.edgehub.io)" ""
+  EDGEHUB_URL="$REPLY"
+else
+  _ok "Backend URL automatically applied: ${EDGEHUB_URL}"
+fi
 
-_prompt "Registration Token" ""
-EDGEHUB_TOKEN="$REPLY"
+# Controllo dinamico per EDGEHUB_TOKEN
+if [[ -z "${EDGEHUB_TOKEN:-}" ]]; then
+  _prompt "Registration Token" ""
+  EDGEHUB_TOKEN="$REPLY"
+else
+  _ok "Registration Token automatically applied."
+fi
 
 _prompt "Node Name (Identifier for the Cluster)" "k8s-cluster-01"
 EDGEHUB_HOSTNAME="$REPLY"
