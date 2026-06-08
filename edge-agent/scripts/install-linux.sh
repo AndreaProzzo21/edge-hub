@@ -1,6 +1,13 @@
 #!/usr/bin/env bash
 # ==============================================================================
-#  Edge Agent  ·  Linux Native Installer (Simplified)
+#  Edge Agent  ·  Linux Native Installer
+# ==============================================================================
+#
+#  USAGE:
+#    EDGEHUB_URL='https://api.edgehub.io' \
+#    EDGEHUB_TOKEN='your-token' \
+#    bash <(curl -sSL https://raw.githubusercontent.com/AndreaProzzo21/edge-hub/main/edge-agent/scripts/install-linux.sh)
+#
 # ==============================================================================
 set -euo pipefail
 
@@ -22,7 +29,6 @@ BINARY_PATH="${INSTALL_DIR}/edgehub-agent"
 ENV_FILE="${INSTALL_DIR}/.env"
 SERVICE_NAME="edgehub"
 
-# GitHub Latest Release Download URL
 RELEASES_URL="https://raw.githubusercontent.com/AndreaProzzo21/edge-hub/main/edge-agent/deploy/linux"
 
 # --- UI HELPERS ---
@@ -40,7 +46,7 @@ _prompt() {
   else
     printf "  ${WHITE}%s${C0}: " "$prompt_text"
   fi
-  
+
   REPLY=""
   read -r REPLY < /dev/tty || true
 
@@ -65,30 +71,39 @@ echo -e "   ${DIM}Deploys the EdgeHub monitoring agent as a systemd service${C0}
 # --- 1. CHECKS ---
 if [[ $EUID -ne 0 ]]; then _err "This installer must be run as root (or via sudo)."; fi
 
+_step "Checking prerequisites..."
+if ! command -v curl >/dev/null 2>&1; then
+  _err "curl is not installed. Please install curl first."
+fi
+if ! command -v systemctl >/dev/null 2>&1; then
+  _err "systemd is not available. This installer requires a systemd-based Linux distribution."
+fi
+
 raw_arch=$(uname -m)
 if [[ "$raw_arch" == "x86_64" ]]; then
   DETECTED_ARCH="amd64"
 elif [[ "$raw_arch" == "aarch64" || "$raw_arch" == "arm64" ]]; then
   DETECTED_ARCH="arm64"
 else
-  DETECTED_ARCH="amd64" # Fallback
+  DETECTED_ARCH="amd64"
 fi
+_ok "Prerequisites OK — detected architecture: ${DETECTED_ARCH}"
 
 # --- 2. CONFIGURATION ---
 _step "Configuration"
 
-# Controllo dinamico per EDGEHUB_URL
 if [[ -z "${EDGEHUB_URL:-}" ]]; then
   _prompt "Backend URL (e.g. https://api.edgehub.io)" ""
   EDGEHUB_URL="$REPLY"
+  [[ -z "$EDGEHUB_URL" ]] && _err "Backend URL is required."
 else
   _ok "Backend URL automatically applied: ${EDGEHUB_URL}"
 fi
 
-# Controllo dinamico per EDGEHUB_TOKEN
 if [[ -z "${EDGEHUB_TOKEN:-}" ]]; then
   _prompt "Registration Token" ""
   EDGEHUB_TOKEN="$REPLY"
+  [[ -z "$EDGEHUB_TOKEN" ]] && _err "Registration Token is required."
 else
   _ok "Registration Token automatically applied."
 fi
@@ -110,11 +125,10 @@ esac
 
 # --- 3. WORKSPACE & DOWNLOAD ---
 _step "Setting up workspace..."
-mkdir -p "${INSTALL_DIR}/data"  # Folder for the state file
+mkdir -p "${INSTALL_DIR}/data"
 _ok "Workspace created at ${INSTALL_DIR}"
 
 _step "Downloading binary (${BIN_FILENAME})..."
-# Using curl -# for a simple native progress bar
 curl -# -fSL "${RELEASES_URL}/${BIN_FILENAME}" -o "${BINARY_PATH}" || _err "Download failed. Check the URL or GitHub Releases."
 chmod +x "${BINARY_PATH}"
 _ok "Binary installed to ${BINARY_PATH}"

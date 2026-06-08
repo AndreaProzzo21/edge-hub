@@ -2,6 +2,13 @@
 # ==============================================================================
 #  Edge Agent  ·  Kubernetes Installer
 # ==============================================================================
+#
+#  USAGE:
+#    EDGEHUB_URL='https://api.edgehub.io' \
+#    EDGEHUB_TOKEN='your-token' \
+#    bash <(curl -sSL https://raw.githubusercontent.com/AndreaProzzo21/edge-hub/main/edge-agent/scripts/install-k8s.sh)
+#
+# ==============================================================================
 set -euo pipefail
 
 # --- COLOUR PALETTE ---
@@ -21,8 +28,6 @@ INSTALL_DIR="${HOME}/.edgehub-k8s"
 SECRET_FILE="${INSTALL_DIR}/edgehub-secret.yaml"
 MANIFEST_FILE="${INSTALL_DIR}/edgehub-agent.yaml"
 
-# Update this URL with the exact 'raw' link to your agent Kubernetes manifest on GitHub
-# The remote manifest should contain: ServiceAccount, ClusterRole, ClusterRoleBinding, Deployment, PVC
 MANIFEST_URL="https://raw.githubusercontent.com/AndreaProzzo21/edge-hub/main/edge-agent/deploy/k8s/edgehub-agent.yaml"
 
 # --- UI HELPERS ---
@@ -40,7 +45,7 @@ _prompt() {
   else
     printf "  ${WHITE}%s${C0}: " "$prompt_text"
   fi
-  
+
   REPLY=""
   read -r REPLY < /dev/tty || true
 
@@ -76,21 +81,22 @@ _ok "Connected to Kubernetes cluster"
 
 # --- 2. CONFIGURATION ---
 _step "Configuration"
+
 _prompt "Namespace to deploy into" "edgehub-system"
 EDGEHUB_NAMESPACE="$REPLY"
 
-# Controllo dinamico per EDGEHUB_URL
 if [[ -z "${EDGEHUB_URL:-}" ]]; then
   _prompt "Backend URL (e.g. https://api.edgehub.io)" ""
   EDGEHUB_URL="$REPLY"
+  [[ -z "$EDGEHUB_URL" ]] && _err "Backend URL is required."
 else
   _ok "Backend URL automatically applied: ${EDGEHUB_URL}"
 fi
 
-# Controllo dinamico per EDGEHUB_TOKEN
 if [[ -z "${EDGEHUB_TOKEN:-}" ]]; then
   _prompt "Registration Token" ""
   EDGEHUB_TOKEN="$REPLY"
+  [[ -z "$EDGEHUB_TOKEN" ]] && _err "Registration Token is required."
 else
   _ok "Registration Token automatically applied."
 fi
@@ -115,7 +121,6 @@ _ok "edgehub-agent.yaml saved successfully"
 
 # --- 4. CONFIGURATION FILE (K8S SECRET) ---
 _step "Generating Kubernetes Secret..."
-# Base64 encode values safely (tr -d '\n' prevents line break issues)
 B64_URL=$(echo -n "$EDGEHUB_URL" | base64 | tr -d '\n')
 B64_TOKEN=$(echo -n "$EDGEHUB_TOKEN" | base64 | tr -d '\n')
 B64_HOSTNAME=$(echo -n "$EDGEHUB_HOSTNAME" | base64 | tr -d '\n')
@@ -145,15 +150,12 @@ _ok "Secret manifest generated"
 # --- 5. DEPLOYMENT ---
 _step "Deploying to Kubernetes..."
 
-# Create namespace if it doesn't exist
 kubectl create namespace "${EDGEHUB_NAMESPACE}" --dry-run=client -o yaml | kubectl apply -f - >/dev/null
 _ok "Namespace '${EDGEHUB_NAMESPACE}' ensured"
 
-# Apply Secret
 kubectl apply -f "${SECRET_FILE}" >/dev/null || _err "Failed to apply Secret."
 _ok "Configuration Secret applied"
 
-# Apply Manifest
 kubectl apply -f "${MANIFEST_FILE}" -n "${EDGEHUB_NAMESPACE}" >/dev/null || _err "Failed to apply Deployment."
 _ok "Agent Deployment applied"
 

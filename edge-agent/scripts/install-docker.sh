@@ -2,6 +2,13 @@
 # ==============================================================================
 #  Edge Agent  ·  Docker Compose Installer
 # ==============================================================================
+#
+#  USAGE:
+#    EDGEHUB_URL='https://api.edgehub.io' \
+#    EDGEHUB_TOKEN='your-token' \
+#    bash <(curl -sSL https://raw.githubusercontent.com/AndreaProzzo21/edge-hub/main/edge-agent/scripts/install-docker.sh)
+#
+# ==============================================================================
 set -euo pipefail
 
 # --- COLOUR PALETTE ---
@@ -21,7 +28,6 @@ INSTALL_DIR="/opt/edgehub"
 ENV_FILE="${INSTALL_DIR}/.env"
 COMPOSE_FILE="${INSTALL_DIR}/docker-compose.yml"
 
-# Update this URL with the exact 'raw' link to your agent docker-compose.yml on GitHub
 COMPOSE_URL="https://raw.githubusercontent.com/AndreaProzzo21/edge-hub/main/edge-agent/deploy/docker/docker-compose.yml"
 
 # --- UI HELPERS ---
@@ -39,7 +45,7 @@ _prompt() {
   else
     printf "  ${WHITE}%s${C0}: " "$prompt_text"
   fi
-  
+
   REPLY=""
   read -r REPLY < /dev/tty || true
 
@@ -81,18 +87,18 @@ _ok "Docker and ${DOCKER_CMD} found"
 # --- 2. CONFIGURATION ---
 _step "Configuration"
 
-# Controllo dinamico per EDGEHUB_URL
 if [[ -z "${EDGEHUB_URL:-}" ]]; then
   _prompt "Backend URL (e.g. https://api.edgehub.io)" ""
   EDGEHUB_URL="$REPLY"
+  [[ -z "$EDGEHUB_URL" ]] && _err "Backend URL is required."
 else
   _ok "Backend URL automatically applied: ${EDGEHUB_URL}"
 fi
 
-# Controllo dinamico per EDGEHUB_TOKEN
 if [[ -z "${EDGEHUB_TOKEN:-}" ]]; then
   _prompt "Registration Token" ""
   EDGEHUB_TOKEN="$REPLY"
+  [[ -z "$EDGEHUB_TOKEN" ]] && _err "Registration Token is required."
 else
   _ok "Registration Token automatically applied."
 fi
@@ -108,7 +114,7 @@ EDGEHUB_INTERVAL="$REPLY"
 
 # --- 3. WORKSPACE & DOWNLOAD ---
 _step "Setting up workspace..."
-mkdir -p "${INSTALL_DIR}/data"  # Folder to mount the state volume safely
+mkdir -p "${INSTALL_DIR}/data"
 _ok "Workspace created at ${INSTALL_DIR}"
 
 _step "Downloading docker-compose.yml..."
