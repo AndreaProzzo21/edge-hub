@@ -5,239 +5,1377 @@
     <meta charset="utf-8"/>
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Developer Portal | EdgeHub</title>
-    
+
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,400&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
     <style>
         :root {
-            /* Elegant Palette: White and Green */
-            --primary: #059669; /* Elegant Green (Emerald 600) */
-            --primary-hover: #047857; /* Dark Green */
-            --bg-base: #ffffff; /* Clean Main Background */
-            --bg-subtle: #f0fdf4; /* Subtle Green Background for contrast */
-            --text-main: #0f172a; /* Primary Dark Text */
-            --text-muted: #64748b; /* Secondary Gray Text */
+            --primary: #059669;
+            --primary-hover: #047857;
+            --primary-light: #d1fae5;
+            --primary-mid: #6ee7b7;
+            --bg-base: #ffffff;
+            --bg-subtle: #f0fdf4;
+            --bg-sidebar: #fafafa;
+            --text-main: #0f172a;
+            --text-muted: #64748b;
+            --text-light: #94a3b8;
             --border-color: #e2e8f0;
+            --border-strong: #cbd5e1;
+            --code-bg: #f1f5f9;
+            --danger: #ef4444;
+            --warning: #f59e0b;
+            --info: #3b82f6;
+            --sidebar-width: 260px;
+            --nav-height: 60px;
         }
 
-        body { 
-            margin: 0; 
-            padding: 0; 
-            font-family: 'Inter', sans-serif; 
+        *, *::before, *::after { box-sizing: border-box; }
+
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'DM Sans', sans-serif;
             background-color: var(--bg-base);
             color: var(--text-main);
-            display: flex;
-            flex-direction: column;
-            min-height: 100vh;
+            font-size: 15px;
+            line-height: 1.6;
         }
 
-        /* Top Navigation Bar */
-        .nav-header {
-            background-color: var(--bg-base);
-            padding: 0 30px;
-            height: 64px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
+        /* ─── TOPNAV ─── */
+        .topnav {
             position: sticky;
             top: 0;
             z-index: 1000;
+            height: var(--nav-height);
+            background: var(--bg-base);
             border-bottom: 1px solid var(--border-color);
-            box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 28px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.04);
         }
 
         .nav-brand {
             display: flex;
             align-items: center;
-            gap: 12px;
-            font-weight: 700;
-            font-size: 1.2rem;
+            gap: 11px;
+            font-weight: 600;
+            font-size: 1.1rem;
             color: var(--text-main);
-            letter-spacing: -0.5px;
+            letter-spacing: -0.3px;
+            text-decoration: none;
         }
 
-        .nav-links a {
-            color: var(--text-muted);
-            text-decoration: none;
-            font-weight: 500;
-            font-size: 0.95rem;
-            margin-left: 24px;
-            transition: color 0.2s ease;
-            display: inline-flex;
+        .brand-icon {
+            width: 36px;
+            height: 36px;
+            background: var(--primary);
+            border-radius: 9px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            box-shadow: 0 2px 8px rgba(5,150,105,0.35);
+        }
+
+        .brand-icon i {
+            color: #fff;
+            font-size: 16px;
+        }
+
+        .nav-right {
+            display: flex;
             align-items: center;
             gap: 8px;
         }
 
-        .nav-links a:hover {
+        .nav-badge {
+            font-size: 0.72rem;
+            font-weight: 600;
+            color: var(--primary);
+            background: var(--primary-light);
+            padding: 3px 9px;
+            border-radius: 20px;
+            letter-spacing: 0.02em;
+        }
+
+        .nav-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 7px;
+            color: var(--text-muted);
+            text-decoration: none;
+            font-size: 0.9rem;
+            font-weight: 500;
+            padding: 6px 14px;
+            border-radius: 8px;
+            transition: background 0.15s, color 0.15s;
+        }
+
+        .nav-link:hover {
+            background: var(--bg-subtle);
             color: var(--primary);
         }
 
-        /* Hero / Introduction Section */
-        .hero-section {
-            background: linear-gradient(180deg, var(--bg-subtle) 0%, var(--bg-base) 100%);
-            padding: 50px 30px;
-            border-bottom: 1px solid var(--border-color);
+        /* ─── LAYOUT ─── */
+        .page-wrapper {
+            display: flex;
+            min-height: calc(100vh - var(--nav-height));
         }
 
-        .hero-content {
-            max-width: 1200px;
-            margin: 0 auto;
+        /* ─── SIDEBAR ─── */
+        .sidebar {
+            width: var(--sidebar-width);
+            flex-shrink: 0;
+            background: var(--bg-sidebar);
+            border-right: 1px solid var(--border-color);
+            position: sticky;
+            top: var(--nav-height);
+            height: calc(100vh - var(--nav-height));
+            overflow-y: auto;
+            padding: 20px 0 40px;
+            scrollbar-width: thin;
+            scrollbar-color: var(--border-strong) transparent;
+        }
+
+        .sidebar::-webkit-scrollbar { width: 4px; }
+        .sidebar::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 4px; }
+
+        .sidebar-section {
+            margin-bottom: 4px;
+        }
+
+        .sidebar-label {
+            font-size: 0.7rem;
+            font-weight: 600;
+            color: var(--text-light);
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            padding: 14px 20px 6px;
+        }
+
+        .sidebar-link {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 7px 20px;
+            color: var(--text-muted);
+            text-decoration: none;
+            font-size: 0.875rem;
+            font-weight: 400;
+            border-left: 2px solid transparent;
+            transition: all 0.15s;
+        }
+
+        .sidebar-link i {
+            width: 16px;
+            text-align: center;
+            font-size: 0.85rem;
+            color: var(--text-light);
+            flex-shrink: 0;
+        }
+
+        .sidebar-link:hover {
+            color: var(--text-main);
+            background: var(--border-color);
+        }
+
+        .sidebar-link.active {
+            color: var(--primary);
+            border-left-color: var(--primary);
+            background: var(--primary-light);
+            font-weight: 500;
+        }
+
+        .sidebar-link.active i {
+            color: var(--primary);
+        }
+
+        .sidebar-divider {
+            height: 1px;
+            background: var(--border-color);
+            margin: 10px 20px;
+        }
+
+        /* ─── MAIN CONTENT ─── */
+        .main-content {
+            flex: 1;
+            min-width: 0;
+        }
+
+        /* ─── HERO ─── */
+        .hero {
+            background: linear-gradient(160deg, var(--bg-subtle) 0%, #ffffff 60%);
+            border-bottom: 1px solid var(--border-color);
+            padding: 48px 52px 44px;
+        }
+
+        .hero-eyebrow {
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: var(--primary);
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            margin: 0 0 10px;
         }
 
         .hero-title {
-            font-size: 2.2rem;
-            font-weight: 700;
-            margin: 0 0 16px 0;
+            font-size: 2rem;
+            font-weight: 600;
             color: var(--text-main);
             letter-spacing: -0.5px;
+            margin: 0 0 14px;
+            line-height: 1.2;
         }
 
-        .hero-title span {
-            color: var(--primary);
-        }
+        .hero-title span { color: var(--primary); }
 
-        .hero-subtitle {
-            font-size: 1.1rem;
+        .hero-desc {
+            font-size: 1rem;
             color: var(--text-muted);
-            margin: 0 0 30px 0;
-            font-weight: 400;
-            max-width: 800px;
-            line-height: 1.6;
+            max-width: 680px;
+            margin: 0 0 32px;
+            line-height: 1.7;
         }
 
-        .features-grid {
+        .hero-cards {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-            gap: 24px;
-            margin-top: 20px;
+            grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+            gap: 16px;
+            max-width: 900px;
         }
 
-        .feature-card {
+        .hero-card {
             background: var(--bg-base);
             border: 1px solid var(--border-color);
             border-radius: 12px;
-            padding: 24px;
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
-            transition: transform 0.2s ease, border-color 0.2s ease;
+            padding: 20px;
+            transition: box-shadow 0.2s, border-color 0.2s, transform 0.2s;
         }
 
-        .feature-card:hover {
+        .hero-card:hover {
+            border-color: var(--primary-mid);
+            box-shadow: 0 4px 16px rgba(5,150,105,0.10);
             transform: translateY(-2px);
-            border-color: var(--primary);
         }
 
-        .feature-card h3 {
-            margin: 0 0 12px 0;
-            font-size: 1.05rem;
+        .hero-card-icon {
+            width: 36px;
+            height: 36px;
+            background: var(--bg-subtle);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 12px;
+        }
+
+        .hero-card-icon i { color: var(--primary); font-size: 15px; }
+
+        .hero-card h3 {
+            margin: 0 0 6px;
+            font-size: 0.9rem;
+            font-weight: 600;
             color: var(--text-main);
+        }
+
+        .hero-card p {
+            margin: 0;
+            font-size: 0.83rem;
+            color: var(--text-muted);
+            line-height: 1.6;
+        }
+
+        /* ─── DOC SECTIONS ─── */
+        .doc-body {
+            padding: 48px 52px 60px;
+            max-width: 960px;
+        }
+
+        .section-anchor {
+            scroll-margin-top: calc(var(--nav-height) + 20px);
+        }
+
+        .section-title {
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: var(--text-main);
+            letter-spacing: -0.3px;
+            margin: 0 0 6px;
             display: flex;
             align-items: center;
             gap: 10px;
         }
 
-        .feature-card h3 i {
+        .section-title i {
             color: var(--primary);
-            background: var(--bg-subtle);
-            padding: 8px;
-            border-radius: 8px;
+            font-size: 1rem;
         }
 
-        .feature-card p {
+        .section-subtitle {
+            font-size: 0.9rem;
+            color: var(--text-muted);
+            margin: 0 0 24px;
+        }
+
+        .section-divider {
+            border: none;
+            border-top: 1px solid var(--border-color);
+            margin: 48px 0;
+        }
+
+        /* ─── CARDS GRID ─── */
+        .cards-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+            gap: 16px;
+            margin-bottom: 32px;
+        }
+
+        .info-card {
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 20px;
+            background: var(--bg-base);
+        }
+
+        .info-card-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 12px;
+        }
+
+        .info-card-header i {
+            color: var(--primary);
+            font-size: 1rem;
+        }
+
+        .info-card-header h4 {
             margin: 0;
             font-size: 0.9rem;
+            font-weight: 600;
+            color: var(--text-main);
+        }
+
+        .info-card p {
+            margin: 0 0 10px;
+            font-size: 0.84rem;
             color: var(--text-muted);
             line-height: 1.6;
         }
 
-        /* Redoc Container */
-        .redoc-container {
-            flex: 1;
+        .info-card p:last-child { margin-bottom: 0; }
+
+        /* ─── STEPS ─── */
+        .steps {
+            counter-reset: step;
+            margin: 0 0 28px;
+        }
+
+        .step {
+            display: flex;
+            gap: 16px;
+            margin-bottom: 20px;
             position: relative;
+        }
+
+        .step:not(:last-child)::before {
+            content: '';
+            position: absolute;
+            left: 14px;
+            top: 34px;
+            bottom: -8px;
+            width: 1px;
+            background: var(--border-color);
+        }
+
+        .step-num {
+            counter-increment: step;
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            background: var(--primary);
+            color: #fff;
+            font-size: 0.75rem;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            margin-top: 1px;
+        }
+
+        .step-body h4 {
+            margin: 0 0 4px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: var(--text-main);
+        }
+
+        .step-body p {
+            margin: 0;
+            font-size: 0.84rem;
+            color: var(--text-muted);
+            line-height: 1.6;
+        }
+
+        /* ─── CODE ─── */
+        .code-block {
+            background: var(--code-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            padding: 16px 20px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.8rem;
+            color: var(--text-main);
+            overflow-x: auto;
+            margin: 12px 0 20px;
+            position: relative;
+        }
+
+        .code-block .code-label {
+            font-family: 'DM Sans', sans-serif;
+            font-size: 0.7rem;
+            font-weight: 600;
+            color: var(--text-light);
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+            margin-bottom: 8px;
+        }
+
+        .code-block code {
+            display: block;
+            white-space: pre;
+            line-height: 1.7;
+        }
+
+        .token-kw { color: #7c3aed; }
+        .token-str { color: #059669; }
+        .token-cmt { color: #94a3b8; font-style: italic; }
+        .token-cmd { color: #0f172a; }
+
+        /* ─── BADGE ROW ─── */
+        .badge-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin: 0 0 20px;
+        }
+
+        .badge {
+            font-size: 0.75rem;
+            font-weight: 600;
+            padding: 4px 11px;
+            border-radius: 20px;
+            letter-spacing: 0.01em;
+        }
+
+        .badge-green  { background: var(--primary-light); color: var(--primary-hover); }
+        .badge-blue   { background: #dbeafe; color: #1d4ed8; }
+        .badge-amber  { background: #fef3c7; color: #92400e; }
+        .badge-red    { background: #fee2e2; color: #b91c1c; }
+        .badge-purple { background: #ede9fe; color: #6d28d9; }
+        .badge-gray   { background: #f1f5f9; color: #475569; border: 1px solid var(--border-color); }
+
+        /* ─── TABLE ─── */
+        .doc-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.84rem;
+            margin: 0 0 24px;
+        }
+
+        .doc-table th {
+            text-align: left;
+            padding: 10px 14px;
+            font-weight: 600;
+            font-size: 0.78rem;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            color: var(--text-muted);
+            background: var(--code-bg);
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .doc-table td {
+            padding: 10px 14px;
+            color: var(--text-main);
+            border-bottom: 1px solid var(--border-color);
+            vertical-align: top;
+        }
+
+        .doc-table tr:last-child td { border-bottom: none; }
+        .doc-table tr:hover td { background: var(--bg-subtle); }
+
+        .doc-table code {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.78rem;
+            background: var(--code-bg);
+            padding: 2px 6px;
+            border-radius: 4px;
+            color: var(--primary-hover);
+        }
+
+        /* ─── CALLOUT ─── */
+        .callout {
+            border-radius: 10px;
+            padding: 14px 18px;
+            font-size: 0.86rem;
+            margin: 0 0 20px;
+            display: flex;
+            gap: 12px;
+            align-items: flex-start;
+            line-height: 1.6;
+        }
+
+        .callout i { margin-top: 2px; flex-shrink: 0; font-size: 0.9rem; }
+
+        .callout-warn  { background: #fefce8; border: 1px solid #fde047; color: #713f12; }
+        .callout-warn i { color: #ca8a04; }
+        .callout-info  { background: #eff6ff; border: 1px solid #bfdbfe; color: #1e3a5f; }
+        .callout-info i { color: var(--info); }
+        .callout-danger{ background: #fff1f2; border: 1px solid #fecdd3; color: #881337; }
+        .callout-danger i { color: var(--danger); }
+        .callout-green { background: var(--bg-subtle); border: 1px solid var(--primary-mid); color: #064e3b; }
+        .callout-green i { color: var(--primary); }
+
+        /* ─── SEQUENCE DIAGRAM ─── */
+        .sequence-block {
+            background: #0f172a;
+            border-radius: 12px;
+            padding: 28px 32px;
+            margin: 12px 0 24px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.78rem;
+            line-height: 1.9;
+            overflow-x: auto;
+        }
+
+        .seq-phase {
+            border-left: 2px solid;
+            padding-left: 16px;
+            margin: 14px 0;
+        }
+        .seq-phase.provision { border-color: #6ee7b7; }
+        .seq-phase.register  { border-color: #93c5fd; }
+        .seq-phase.telemetry { border-color: #a5b4fc; }
+        .seq-phase.revoke    { border-color: #fca5a5; }
+
+        .seq-label {
+            font-size: 0.68rem;
+            font-weight: 700;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            margin-bottom: 8px;
+        }
+        .seq-phase.provision .seq-label { color: #6ee7b7; }
+        .seq-phase.register  .seq-label { color: #93c5fd; }
+        .seq-phase.telemetry .seq-label { color: #a5b4fc; }
+        .seq-phase.revoke    .seq-label { color: #fca5a5; }
+
+        .seq-line { color: #94a3b8; }
+        .seq-line .actor { color: #e2e8f0; font-weight: 500; }
+        .seq-line .arrow { color: #475569; }
+        .seq-line .method { color: #6ee7b7; }
+        .seq-line .status { color: #fbbf24; }
+        .seq-line .note   { color: #64748b; font-style: italic; }
+
+        /* ─── TOPOLOGY GRID ─── */
+        .topo-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 14px;
+            margin: 0 0 28px;
+        }
+
+        .topo-card {
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            overflow: hidden;
+        }
+
+        .topo-header {
+            background: var(--bg-subtle);
+            padding: 12px 16px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .topo-header i { color: var(--primary); font-size: 0.9rem; }
+        .topo-header h4 { margin: 0; font-size: 0.85rem; font-weight: 600; color: var(--text-main); }
+
+        .topo-body {
+            padding: 14px 16px;
+        }
+
+        .topo-body p {
+            margin: 0 0 10px;
+            font-size: 0.82rem;
+            color: var(--text-muted);
+            line-height: 1.55;
+        }
+
+        .topo-body p:last-child { margin-bottom: 0; }
+
+        .topo-tag {
+            display: inline-block;
+            font-size: 0.7rem;
+            font-weight: 600;
+            background: var(--code-bg);
+            color: var(--text-muted);
+            padding: 2px 8px;
+            border-radius: 5px;
+            font-family: 'JetBrains Mono', monospace;
+            border: 1px solid var(--border-color);
+        }
+
+        /* ─── ALERT FLOW ─── */
+        .alert-flow {
+            display: flex;
+            flex-direction: column;
+            gap: 0;
+            margin: 0 0 24px;
+        }
+
+        .alert-step {
+            display: flex;
+            align-items: flex-start;
+            gap: 14px;
+        }
+
+        .alert-line-wrap {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            flex-shrink: 0;
+        }
+
+        .alert-dot {
+            width: 26px;
+            height: 26px;
+            border-radius: 50%;
+            border: 2px solid var(--primary);
+            background: var(--bg-base);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+
+        .alert-dot i { font-size: 0.7rem; color: var(--primary); }
+        .alert-dot.red { border-color: var(--danger); }
+        .alert-dot.red i { color: var(--danger); }
+        .alert-dot.amber { border-color: var(--warning); }
+        .alert-dot.amber i { color: var(--warning); }
+
+        .alert-connector {
+            width: 1px;
+            flex: 1;
+            min-height: 24px;
+            background: var(--border-color);
+            margin: 2px 0;
+        }
+
+        .alert-body {
+            padding-bottom: 20px;
+        }
+
+        .alert-body h4 {
+            margin: 4px 0 4px;
+            font-size: 0.88rem;
+            font-weight: 600;
+            color: var(--text-main);
+        }
+
+        .alert-body p {
+            margin: 0;
+            font-size: 0.82rem;
+            color: var(--text-muted);
+            line-height: 1.55;
+        }
+
+        /* ─── SECURITY GRID ─── */
+        .security-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 14px;
+            margin: 0 0 28px;
+        }
+
+        .security-item {
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            padding: 16px;
+            display: flex;
+            gap: 12px;
+        }
+
+        .security-icon {
+            width: 34px;
+            height: 34px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+
+        .security-icon.green  { background: var(--primary-light); }
+        .security-icon.amber  { background: #fef3c7; }
+        .security-icon.blue   { background: #dbeafe; }
+        .security-icon.red    { background: #fee2e2; }
+        .security-icon.purple { background: #ede9fe; }
+
+        .security-icon.green  i { color: var(--primary); font-size: 0.9rem; }
+        .security-icon.amber  i { color: #d97706; font-size: 0.9rem; }
+        .security-icon.blue   i { color: #2563eb; font-size: 0.9rem; }
+        .security-icon.red    i { color: #dc2626; font-size: 0.9rem; }
+        .security-icon.purple i { color: #7c3aed; font-size: 0.9rem; }
+
+        .security-text h4 { margin: 0 0 4px; font-size: 0.85rem; font-weight: 600; color: var(--text-main); }
+        .security-text p  { margin: 0; font-size: 0.8rem; color: var(--text-muted); line-height: 1.55; }
+
+        /* ─── REDOC WRAPPER ─── */
+        .redoc-divider {
+            border-top: 2px solid var(--border-color);
+            margin: 0;
+        }
+
+        .redoc-header {
+            padding: 28px 52px 20px;
+            background: var(--bg-subtle);
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .redoc-header h2 {
+            margin: 0 0 4px;
+            font-size: 1.2rem;
+            font-weight: 600;
+            color: var(--text-main);
+        }
+
+        .redoc-header p {
+            margin: 0;
+            font-size: 0.85rem;
+            color: var(--text-muted);
+        }
+
+        .redoc-badge {
+            font-size: 0.72rem;
+            font-weight: 700;
+            background: #0f172a;
+            color: #6ee7b7;
+            padding: 5px 12px;
+            border-radius: 6px;
+            letter-spacing: 0.04em;
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .redoc-container { width: 100%; }
+
+        /* ─── RESPONSIVE ─── */
+        @media (max-width: 860px) {
+            .sidebar { display: none; }
+            .hero { padding: 32px 24px 28px; }
+            .doc-body { padding: 32px 24px 48px; }
+            .redoc-header { padding: 20px 24px 16px; flex-direction: column; align-items: flex-start; gap: 10px; }
         }
     </style>
 </head>
 <body>
 
-    <header class="nav-header">
-        <div class="nav-brand">
-            <i class="fas fa-shield" style="color: var(--primary);"></i>
-            EdgeHub
+<!-- ─── TOPNAV ─── -->
+<header class="topnav">
+    <a class="nav-brand" href="#">
+        <div class="brand-icon">
+            <i class="fas fa-shield-halved"></i>
         </div>
-        <div class="nav-links">
-            <a href="https://github.com/AndreaProzzo21/edge-hub" target="_blank">
-                <i class="fab fa-github"></i> Repository
+        EdgeHub
+    </a>
+    <div class="nav-right">
+        <span class="nav-badge">v1.0</span>
+        <a class="nav-link" href="https://github.com/AndreaProzzo21/edge-hub" target="_blank">
+            <i class="fab fa-github"></i> Repository
+        </a>
+    </div>
+</header>
+
+<div class="page-wrapper">
+
+    <!-- ─── SIDEBAR ─── -->
+    <nav class="sidebar">
+        <div class="sidebar-section">
+            <div class="sidebar-label">Overview</div>
+            <a class="sidebar-link active" href="#overview">
+                <i class="fas fa-house"></i> Introduction
+            </a>
+            <a class="sidebar-link" href="#architecture">
+                <i class="fas fa-diagram-project"></i> Architecture
             </a>
         </div>
-    </header>
+        <div class="sidebar-divider"></div>
+        <div class="sidebar-section">
+            <div class="sidebar-label">Setup</div>
+            <a class="sidebar-link" href="#backend-setup">
+                <i class="fas fa-server"></i> Backend Deploy
+            </a>
+            <a class="sidebar-link" href="#security-config">
+                <i class="fas fa-lock"></i> Security Config
+            </a>
+            <a class="sidebar-link" href="#agent-deploy">
+                <i class="fas fa-microchip"></i> Agent Deploy
+            </a>
+        </div>
+        <div class="sidebar-divider"></div>
+        <div class="sidebar-section">
+            <div class="sidebar-label">Agent</div>
+            <a class="sidebar-link" href="#agent-lifecycle">
+                <i class="fas fa-rotate"></i> Lifecycle & Auth
+            </a>
+            <a class="sidebar-link" href="#topologies">
+                <i class="fas fa-network-wired"></i> Topologies
+            </a>
+            <a class="sidebar-link" href="#alerting">
+                <i class="fas fa-bell"></i> Alerting
+            </a>
+        </div>
+        <div class="sidebar-divider"></div>
+        <div class="sidebar-section">
+            <div class="sidebar-label">API Reference</div>
+            <a class="sidebar-link" href="#api-auth">
+                <i class="fas fa-key"></i> Authentication
+            </a>
+            <a class="sidebar-link" href="#api-endpoints">
+                <i class="fas fa-code"></i> Endpoints
+            </a>
+            <a class="sidebar-link" href="#api-schema">
+                <i class="fas fa-database"></i> Data Schema
+            </a>
+        </div>
+    </nav>
 
-    <section class="hero-section">
-        <div class="hero-content">
-            <h1 class="hero-title">Developer <span>API Portal</span></h1>
-            <p class="hero-subtitle">
-                Explore the official EdgeHub REST API. The Control Plane provides secure, asynchronous endpoints for node provisioning, real-time telemetry ingestion, and edge fleet management.
+    <!-- ─── MAIN ─── -->
+    <div class="main-content">
+
+        <!-- HERO -->
+        <section class="hero" id="overview">
+            <p class="hero-eyebrow">Developer Portal</p>
+            <h1 class="hero-title">EdgeHub <span>API Documentation</span></h1>
+            <p class="hero-desc">
+                EdgeHub is a high-performance telemetry and observability platform designed to monitor distributed edge devices, virtual machines, and containerised workloads. The Control Plane exposes secure, asynchronous REST endpoints for node provisioning, real-time telemetry ingestion, and edge fleet management.
             </p>
-            
-            <div class="features-grid">
-                <div class="feature-card">
-                    <h3><i class="fas fa-server"></i> Node Provisioning</h3>
-                    <p>Programmatically manage the agent lifecycle, secure JWT token generation, and access revocation.</p>
+            <div class="hero-cards">
+                <div class="hero-card">
+                    <div class="hero-card-icon"><i class="fas fa-server"></i></div>
+                    <h3>Node Provisioning</h3>
+                    <p>Manage the full agent lifecycle — secure JWT generation, single-use registration tokens, and instant revocation.</p>
                 </div>
-                <div class="feature-card">
-                    <h3><i class="fas fa-chart-line"></i> Telemetry Ingestion</h3>
-                    <p>Optimized endpoints for high-throughput ingestion of hardware metrics and hybrid workloads from Docker and Kubernetes.</p>
+                <div class="hero-card">
+                    <div class="hero-card-icon"><i class="fas fa-chart-line"></i></div>
+                    <h3>Telemetry Ingestion</h3>
+                    <p>Optimised endpoints for high-throughput ingestion of hardware metrics, Docker container states and Kubernetes pod health.</p>
                 </div>
-                <div class="feature-card">
-                    <h3><i class="fas fa-lock"></i> Security First</h3>
-                    <p>All routes require authentication. Use Admin API Keys for control operations, and strictly validated JWTs for edge nodes.</p>
+                <div class="hero-card">
+                    <div class="hero-card-icon"><i class="fas fa-shield-halved"></i></div>
+                    <h3>Security First</h3>
+                    <p>Every route requires authentication. Admin API Keys for control-plane operations; strictly validated JWTs for edge nodes.</p>
+                </div>
+                <div class="hero-card">
+                    <div class="hero-card-icon"><i class="fas fa-bell"></i></div>
+                    <h3>Smart Alerting</h3>
+                    <p>Buffered state evaluation with configurable thresholds prevents false positives. Discord and Slack webhooks supported.</p>
                 </div>
             </div>
+        </section>
+
+        <!-- DOC BODY -->
+        <div class="doc-body">
+
+            <!-- ARCHITECTURE -->
+            <section class="section-anchor" id="architecture">
+                <h2 class="section-title"><i class="fas fa-diagram-project"></i> System Architecture</h2>
+                <p class="section-subtitle">The platform operates on a strictly decoupled client-server architecture divided into a Control Plane and a Data Plane.</p>
+
+                <div class="cards-grid">
+                    <div class="info-card">
+                        <div class="info-card-header">
+                            <i class="fas fa-server"></i>
+                            <h4>Control Plane — Backend</h4>
+                        </div>
+                        <p>A robust, asynchronous REST API built with <strong>Python (FastAPI)</strong> and <strong>PostgreSQL</strong>. Serves as the central hub for node provisioning, secure agent authentication and data ingestion.</p>
+                        <p><strong>Hybrid Data Schema:</strong> Core metrics (CPU, RAM, Disk, Uptime) adhere to a strict relational schema for high-performance querying. An extensible <code>JSON</code> column dynamically captures environment-specific telemetry (Docker, Kubernetes) without requiring database migrations.</p>
+                    </div>
+                    <div class="info-card">
+                        <div class="info-card-header">
+                            <i class="fas fa-microchip"></i>
+                            <h4>Data Plane — Agent</h4>
+                        </div>
+                        <p>A zero-dependency, multi-architecture <strong>Go binary</strong> (AMD64 &amp; ARM64). It auto-detects its environment and operates on a push-based telemetry loop with a minimal resource footprint.</p>
+                        <p><strong>Fail-Fast Security:</strong> The agent respects immediate revocation. Upon a <code>401</code> response it permanently self-terminates — deleting its local state file — to prevent zombie processes and bandwidth waste.</p>
+                    </div>
+                </div>
+
+                <!-- Sequence diagram -->
+                <h3 style="font-size:0.95rem; font-weight:600; color:var(--text-main); margin:0 0 10px;">Request Lifecycle</h3>
+                <div class="sequence-block">
+                    <div class="seq-phase provision">
+                        <div class="seq-label">1 · Provisioning &amp; Authentication</div>
+                        <div class="seq-line"><span class="actor">Admin</span> <span class="arrow">─────────────▶</span> <span class="method">POST /auth/login</span> <span class="note">// Admin credentials</span></div>
+                        <div class="seq-line"><span class="actor">API  </span> <span class="arrow">◀─────────────</span> <span class="status">200 OK</span> <span class="note">// Set-Cookie: Session</span></div>
+                        <div class="seq-line"><span class="actor">Admin</span> <span class="arrow">─────────────▶</span> <span class="method">POST /sites</span> <span class="note">// Create Site/Group</span></div>
+                        <div class="seq-line"><span class="actor">Admin</span> <span class="arrow">─────────────▶</span> <span class="method">POST /nodes/token</span> <span class="note">// Generate registration token</span></div>
+                        <div class="seq-line"><span class="actor">API  </span> <span class="arrow">◀─────────────</span> <span class="status">201 Created</span> <span class="note">// Returns one-time token</span></div>
+                    </div>
+                    <div class="seq-phase register">
+                        <div class="seq-label">2 · Agent Initialization &amp; Registration</div>
+                        <div class="seq-line"><span class="actor">Agent</span> <span class="arrow">──────────────</span> <span class="note">Check local edgehub-state.json → not found</span></div>
+                        <div class="seq-line"><span class="actor">Agent</span> <span class="arrow">─────────────▶</span> <span class="method">POST /agents/register</span> <span class="note">// Payload + token</span></div>
+                        <div class="seq-line"><span class="actor">API  </span> <span class="arrow">──────────────</span> <span class="note">Validate token, burn it (single-use), create node</span></div>
+                        <div class="seq-line"><span class="actor">API  </span> <span class="arrow">◀─────────────</span> <span class="status">201 Created</span> <span class="note">// Returns Node ID + JWT</span></div>
+                        <div class="seq-line"><span class="actor">Agent</span> <span class="arrow">──────────────</span> <span class="note">Save JWT to edgehub-state.json</span></div>
+                    </div>
+                    <div class="seq-phase telemetry">
+                        <div class="seq-label">3 · Continuous Telemetry Loop (every N seconds)</div>
+                        <div class="seq-line"><span class="actor">Agent</span> <span class="arrow">──────────────</span> <span class="note">Collect base &amp; extra metrics (Docker / K8s)</span></div>
+                        <div class="seq-line"><span class="actor">Agent</span> <span class="arrow">─────────────▶</span> <span class="method">POST /agents/heartbeat</span> <span class="note">// Bearer JWT</span></div>
+                        <div class="seq-line"><span class="actor">API  </span> <span class="arrow">◀─────────────</span> <span class="status">200 OK</span> <span class="note">// Update last_seen, append telemetry</span></div>
+                    </div>
+                    <div class="seq-phase revoke">
+                        <div class="seq-label">4 · Security &amp; Revocation</div>
+                        <div class="seq-line"><span class="actor">Admin</span> <span class="arrow">─────────────▶</span> <span class="method">DELETE /nodes/:id</span> <span class="note">// Revoke / delete node</span></div>
+                        <div class="seq-line"><span class="actor">API  </span> <span class="arrow">──────────────</span> <span class="note">Mark node deleted, invalidate JWT</span></div>
+                        <div class="seq-line"><span class="actor">Agent</span> <span class="arrow">─────────────▶</span> <span class="method">POST /agents/heartbeat</span></div>
+                        <div class="seq-line"><span class="actor">API  </span> <span class="arrow">◀─────────────</span> <span class="status">401 Unauthorized</span></div>
+                        <div class="seq-line"><span class="actor">Agent</span> <span class="arrow">──────────────</span> <span class="note">log.Fatalf → delete state → self-terminate</span></div>
+                    </div>
+                </div>
+            </section>
+
+            <hr class="section-divider">
+
+            <!-- BACKEND SETUP -->
+            <section class="section-anchor" id="backend-setup">
+                <h2 class="section-title"><i class="fas fa-server"></i> Backend Deployment</h2>
+                <p class="section-subtitle">The recommended method to deploy EdgeHub is via the interactive installation script. It orchestrates FastAPI, PostgreSQL, and Nginx as isolated Docker Compose services.</p>
+
+                <div class="callout callout-green">
+                    <i class="fas fa-circle-info"></i>
+                    <div>Run the command below on your <strong>master server</strong>. The script will interactively prompt you for configuration values (domain name, CORS origins, credentials) and set everything up automatically.</div>
+                </div>
+
+                <div class="code-block">
+                    <div class="code-label">bash — quick install</div>
+                    <code><span class="token-cmd">curl -sSL https://raw.githubusercontent.com/AndreaProzzo21/edge-hub/main/edge-hub-app/deploy/install.sh | sudo bash</span></code>
+                </div>
+
+                <h3 style="font-size:0.95rem;font-weight:600;color:var(--text-main);margin:24px 0 12px;">What the script provisions</h3>
+                <div class="steps">
+                    <div class="step">
+                        <div class="step-num">1</div>
+                        <div class="step-body">
+                            <h4>FastAPI Application Container</h4>
+                            <p>The core REST API and websocket server running the Control Plane logic — node management, token issuance, telemetry ingestion, and alert dispatch.</p>
+                        </div>
+                    </div>
+                    <div class="step">
+                        <div class="step-num">2</div>
+                        <div class="step-body">
+                            <h4>PostgreSQL Database</h4>
+                            <p>Stores node entities, registration tokens (single-use, burned on consumption), telemetry time-series, site configurations, and webhook targets.</p>
+                        </div>
+                    </div>
+                    <div class="step">
+                        <div class="step-num">3</div>
+                        <div class="step-body">
+                            <h4>Nginx Reverse Proxy</h4>
+                            <p>Handles static asset delivery, request routing to FastAPI, and built-in Leaky Bucket rate limiting on critical endpoints (login, heartbeat).</p>
+                        </div>
+                    </div>
+                    <div class="step">
+                        <div class="step-num">4</div>
+                        <div class="step-body">
+                            <h4>Web Dashboard</h4>
+                            <p>The management UI for provisioning nodes, generating registration tokens, monitoring fleet telemetry, configuring webhooks, and reviewing alerts. Exposed on port <code>80</code> by default.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="callout callout-warn">
+                    <i class="fas fa-triangle-exclamation"></i>
+                    <div>The Control Plane exposes port <code>80</code> (HTTP) out of the box. <strong>Do not expose this port directly to the internet</strong> without placing a TLS-terminating reverse proxy or secure tunnel in front of it first.</div>
+                </div>
+            </section>
+
+            <hr class="section-divider">
+
+            <!-- SECURITY -->
+            <section class="section-anchor" id="security-config">
+                <h2 class="section-title"><i class="fas fa-lock"></i> Security Configuration</h2>
+                <p class="section-subtitle">EdgeHub follows a Bring Your Own Reverse Proxy philosophy. These requirements must be satisfied before exposing the platform to the internet.</p>
+
+                <div class="security-grid">
+                    <div class="security-item">
+                        <div class="security-icon green"><i class="fas fa-certificate"></i></div>
+                        <div class="security-text">
+                            <h4>SSL / TLS Termination</h4>
+                            <p>Route traffic through Cloudflare Tunnels, Nginx Proxy Manager, Traefik, or Caddy for HTTPS. Never expose port 80 directly.</p>
+                        </div>
+                    </div>
+                    <div class="security-item">
+                        <div class="security-icon blue"><i class="fas fa-globe"></i></div>
+                        <div class="security-text">
+                            <h4>CORS Origins</h4>
+                            <p>During installation, provide your Dashboard URL. This sets <code>CORS_ORIGINS</code> — browser requests from any other domain are rejected by the API.</p>
+                        </div>
+                    </div>
+                    <div class="security-item">
+                        <div class="security-icon amber"><i class="fas fa-gauge-high"></i></div>
+                        <div class="security-text">
+                            <h4>Rate Limiting</h4>
+                            <p>The built-in Nginx container applies Leaky Bucket rate limiting to login and heartbeat endpoints, protecting against brute-force and malfunctioning agents.</p>
+                        </div>
+                    </div>
+                    <div class="security-item">
+                        <div class="security-icon purple"><i class="fas fa-key"></i></div>
+                        <div class="security-text">
+                            <h4>Single-Use Tokens</h4>
+                            <p>Registration tokens are cryptographically generated and burned immediately upon first use. An agent cannot register twice with the same token.</p>
+                        </div>
+                    </div>
+                    <div class="security-item">
+                        <div class="security-icon red"><i class="fas fa-ban"></i></div>
+                        <div class="security-text">
+                            <h4>Instant Revocation</h4>
+                            <p>Deleting a node via the dashboard immediately invalidates its JWT on the backend. The agent self-terminates on its next heartbeat cycle.</p>
+                        </div>
+                    </div>
+                    <div class="security-item">
+                        <div class="security-icon green"><i class="fas fa-shield-halved"></i></div>
+                        <div class="security-text">
+                            <h4>Auth Hierarchy</h4>
+                            <p>Admin API Keys gate all control-plane operations. Edge node JWTs are strictly scoped — they may only submit heartbeats, nothing more.</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <hr class="section-divider">
+
+            <!-- AGENT DEPLOY -->
+            <section class="section-anchor" id="agent-deploy">
+                <h2 class="section-title"><i class="fas fa-microchip"></i> Deploying Agents</h2>
+                <p class="section-subtitle">Agent deployment is managed from the EdgeHub Dashboard. Log in, generate a registration token for the target site, and use the pre-configured copy-paste commands.</p>
+
+                <div class="callout callout-info">
+                    <i class="fas fa-circle-info"></i>
+                    <div>The dashboard auto-fills the correct <strong>API endpoint URL</strong> and <strong>registration token</strong> into each deployment command. You never need to manually construct these.</div>
+                </div>
+
+                <div class="topo-grid">
+                    <div class="topo-card">
+                        <div class="topo-header">
+                            <i class="fas fa-terminal"></i>
+                            <h4>Linux Native (Systemd)</h4>
+                        </div>
+                        <div class="topo-body">
+                            <p>Executed as a root-level background daemon. Designed for bare-metal servers, virtual machines, and IoT devices such as Raspberry Pi.</p>
+                            <p>Reads hardware metrics directly from the Linux kernel. Automatically registers as a systemd service for auto-start on reboot.</p>
+                            <span class="topo-tag">EDGEHUB_MODE=linux</span>
+                        </div>
+                    </div>
+                    <div class="topo-card">
+                        <div class="topo-header">
+                            <i class="fab fa-docker"></i>
+                            <h4>Docker Compose</h4>
+                        </div>
+                        <div class="topo-body">
+                            <p>Runs as an isolated container. Binds to the host Docker socket to enumerate container states, and mounts host system volumes read-only to accurately calculate underlying hardware utilisation.</p>
+                            <span class="topo-tag">EDGEHUB_MODE=docker</span>
+                        </div>
+                    </div>
+                    <div class="topo-card">
+                        <div class="topo-header">
+                            <i class="fas fa-dharmachakra"></i>
+                            <h4>Kubernetes</h4>
+                        </div>
+                        <div class="topo-body">
+                            <p>Deploy one agent as a standard <code>Deployment</code> on a single node with RBAC and <code>hostNetwork</code>/<code>hostPID</code> configurations to interface with the cluster API and report pod health.</p>
+                            <p>For remaining worker/master nodes, deploy the Linux Native agent for basic telemetry and heartbeats.</p>
+                            <span class="topo-tag">EDGEHUB_MODE=kubernetes</span>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <hr class="section-divider">
+
+            <!-- AGENT LIFECYCLE -->
+            <section class="section-anchor" id="agent-lifecycle">
+                <h2 class="section-title"><i class="fas fa-rotate"></i> Agent Lifecycle &amp; Authentication</h2>
+                <p class="section-subtitle">The agent operates a well-defined state machine from first-boot registration through continuous telemetry to eventual revocation.</p>
+
+                <div class="steps">
+                    <div class="step">
+                        <div class="step-num">1</div>
+                        <div class="step-body">
+                            <h4>Boot &amp; State Check</h4>
+                            <p>On startup the agent checks for <code>edgehub-state.json</code> in the local filesystem. If found (and the JWT therein is valid), it skips registration entirely and jumps directly to the telemetry loop.</p>
+                        </div>
+                    </div>
+                    <div class="step">
+                        <div class="step-num">2</div>
+                        <div class="step-body">
+                            <h4>First-Time Registration</h4>
+                            <p>If no state file exists, the agent calls <code>POST /api/v1/agents/register</code> with the provisioning token and hardware metadata. The backend validates and burns the token (single-use), creates the node entity, and returns a persistent JWT.</p>
+                        </div>
+                    </div>
+                    <div class="step">
+                        <div class="step-num">3</div>
+                        <div class="step-body">
+                            <h4>JWT Persistence</h4>
+                            <p>The returned JWT is written to <code>edgehub-state.json</code>. On subsequent restarts (updates, reboots, container restarts) the agent loads this file and resumes without re-registering.</p>
+                        </div>
+                    </div>
+                    <div class="step">
+                        <div class="step-num">4</div>
+                        <div class="step-body">
+                            <h4>Continuous Heartbeat</h4>
+                            <p>Every N seconds the agent collects base metrics (CPU, RAM, disk, uptime) plus environment-specific data (Docker container states or Kubernetes pod health) and posts them to <code>POST /api/v1/agents/heartbeat</code> with a Bearer JWT.</p>
+                        </div>
+                    </div>
+                    <div class="step">
+                        <div class="step-num">5</div>
+                        <div class="step-body">
+                            <h4>Revocation &amp; Self-Cleanup</h4>
+                            <p>If the backend returns <code>401 Unauthorized</code>, the agent calls <code>log.Fatalf</code>, deletes <code>edgehub-state.json</code>, and halts — preventing retry loops and leaving no stale credentials on disk.</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <hr class="section-divider">
+
+            <!-- ALERTING -->
+            <section class="section-anchor" id="alerting">
+                <h2 class="section-title"><i class="fas fa-bell"></i> Alerting &amp; State Management</h2>
+                <p class="section-subtitle">Third-party webhooks (Discord, Slack) can be configured at the Site level. EdgeHub implements a buffered evaluation mechanism to prevent false positives from transient network instability.</p>
+
+                <div class="alert-flow">
+                    <div class="alert-step">
+                        <div class="alert-line-wrap">
+                            <div class="alert-dot"><i class="fas fa-circle-check"></i></div>
+                            <div class="alert-connector"></div>
+                        </div>
+                        <div class="alert-body">
+                            <h4>Node Online — Normal Operation</h4>
+                            <p>Heartbeat received on schedule. Backend updates <code>last_seen</code>, resets <code>offline_cycles</code> counter to <code>0</code>. No notifications triggered.</p>
+                        </div>
+                    </div>
+                    <div class="alert-step">
+                        <div class="alert-line-wrap">
+                            <div class="alert-dot amber"><i class="fas fa-clock"></i></div>
+                            <div class="alert-connector"></div>
+                        </div>
+                        <div class="alert-body">
+                            <h4>Missed Heartbeat — Failing State</h4>
+                            <p>A scheduled heartbeat does not arrive. The backend increments <code>offline_cycles</code>. The node enters a <em>failing</em> state internally, but <strong>no webhook is triggered yet</strong>. Transient network blips are absorbed here.</p>
+                        </div>
+                    </div>
+                    <div class="alert-step">
+                        <div class="alert-line-wrap">
+                            <div class="alert-dot red"><i class="fas fa-circle-xmark"></i></div>
+                            <div class="alert-connector"></div>
+                        </div>
+                        <div class="alert-body">
+                            <h4>3 Consecutive Misses — Offline Alert</h4>
+                            <p>After three consecutive missed cycles the backend transitions the node to <strong>offline</strong> and dispatches the configured webhook payloads (Discord embed, Slack block-kit message, or generic JSON).</p>
+                        </div>
+                    </div>
+                    <div class="alert-step">
+                        <div class="alert-line-wrap">
+                            <div class="alert-dot"><i class="fas fa-rotate-left"></i></div>
+                        </div>
+                        <div class="alert-body">
+                            <h4>Heartbeat Resumes — Recovery Notification</h4>
+                            <p>A successful heartbeat from a previously-offline node immediately resets all failure counters and dispatches a <strong>recovery notification</strong> through the same webhook channels.</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <hr class="section-divider">
+
+            <!-- API AUTH -->
+            <section class="section-anchor" id="api-auth">
+                <h2 class="section-title"><i class="fas fa-key"></i> API Authentication</h2>
+                <p class="section-subtitle">All routes require authentication. Two credential types are in use depending on the caller identity.</p>
+
+                <table class="doc-table">
+                    <thead>
+                        <tr>
+                            <th>Credential</th>
+                            <th>Used By</th>
+                            <th>Mechanism</th>
+                            <th>Scope</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><span class="badge badge-purple">Admin API Key</span></td>
+                            <td>Dashboard / Operators</td>
+                            <td>Session cookie set after <code>POST /auth/login</code></td>
+                            <td>Full control-plane access: create/delete nodes, generate tokens, configure webhooks, view telemetry</td>
+                        </tr>
+                        <tr>
+                            <td><span class="badge badge-green">Node JWT</span></td>
+                            <td>Edge Agents</td>
+                            <td><code>Authorization: Bearer &lt;jwt&gt;</code> header</td>
+                            <td>Submit heartbeats only (<code>POST /agents/heartbeat</code>). Cannot access any other endpoint.</td>
+                        </tr>
+                        <tr>
+                            <td><span class="badge badge-amber">Registration Token</span></td>
+                            <td>Agent (first boot only)</td>
+                            <td>Request body field during registration</td>
+                            <td>One-time use. Burned on consumption. Produces a Node JWT.</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </section>
+
+            <hr class="section-divider">
+
+            <!-- API SCHEMA -->
+            <section class="section-anchor" id="api-schema">
+                <h2 class="section-title"><i class="fas fa-database"></i> Data Schema</h2>
+                <p class="section-subtitle">EdgeHub uses a hybrid relational + JSON schema for telemetry. Core metrics are strictly typed columns; environment-specific extras live in a <code>JSON</code> column.</p>
+
+                <div class="cards-grid">
+                    <div class="info-card">
+                        <div class="info-card-header">
+                            <i class="fas fa-table-columns"></i>
+                            <h4>Strict Relational (Core)</h4>
+                        </div>
+                        <div class="badge-row">
+                            <span class="badge badge-gray">cpu_percent</span>
+                            <span class="badge badge-gray">ram_percent</span>
+                            <span class="badge badge-gray">disk_percent</span>
+                            <span class="badge badge-gray">uptime_seconds</span>
+                            <span class="badge badge-gray">last_seen</span>
+                            <span class="badge badge-gray">node_id</span>
+                        </div>
+                        <p>Indexed columns enabling high-performance aggregation queries across the entire fleet — average CPU across a site, nodes above memory threshold, etc.</p>
+                    </div>
+                    <div class="info-card">
+                        <div class="info-card-header">
+                            <i class="fas fa-braces"></i>
+                            <h4>Dynamic JSON Column (Extras)</h4>
+                        </div>
+                        <div class="badge-row">
+                            <span class="badge badge-blue">docker.containers</span>
+                            <span class="badge badge-blue">docker.running</span>
+                            <span class="badge badge-green">k8s.pods</span>
+                            <span class="badge badge-green">k8s.node_status</span>
+                        </div>
+                        <p>Captures environment-specific data without schema migrations. New telemetry fields in future agent versions are automatically stored without any backend changes.</p>
+                    </div>
+                </div>
+
+                <div class="callout callout-info">
+                    <i class="fas fa-circle-info"></i>
+                    <div>See the full interactive API reference below for complete request/response schemas, field-level validation rules, and example payloads for every endpoint.</div>
+                </div>
+            </section>
+
+        </div><!-- /doc-body -->
+
+        <!-- REDOC SECTION -->
+        <div class="redoc-divider"></div>
+        <div class="redoc-header" id="api-endpoints">
+            <div>
+                <h2>Interactive API Reference</h2>
+                <p>Auto-generated from <code>openapi.json</code> — all endpoints, schemas, and example payloads.</p>
+            </div>
+            <span class="redoc-badge">OpenAPI 3.0</span>
         </div>
-    </section>
 
-    <div class="redoc-container">
-        <redoc spec-url='./openapi.json' 
-               expand-responses="200,201" 
-               hide-hostname="false" 
-               required-props-first="true"
-               theme='{
-                 "colors": { 
-                     "primary": { "main": "#059669" },
-                     "success": { "main": "#10b981" },
-                     "warning": { "main": "#f59e0b" },
-                     "error": { "main": "#ef4444" },
-                     "text": {
-                         "primary": "#0f172a",
-                         "secondary": "#64748b"
+        <div class="redoc-container">
+            <redoc spec-url='./openapi.json'
+                   expand-responses="200,201"
+                   hide-hostname="false"
+                   required-props-first="true"
+                   theme='{
+                     "colors": {
+                         "primary": { "main": "#059669" },
+                         "success": { "main": "#10b981" },
+                         "warning": { "main": "#f59e0b" },
+                         "error":   { "main": "#ef4444" },
+                         "text": {
+                             "primary":   "#0f172a",
+                             "secondary": "#64748b"
+                         },
+                         "http": {
+                             "get":    "#10b981",
+                             "post":   "#059669",
+                             "put":    "#f59e0b",
+                             "delete": "#ef4444"
+                         }
                      },
-                     "http": {
-                         "get": "#10b981",
-                         "post": "#059669",
-                         "put": "#f59e0b",
-                         "delete": "#ef4444"
+                     "typography": {
+                         "fontFamily": "DM Sans, sans-serif",
+                         "headings": { "fontFamily": "DM Sans, sans-serif", "fontWeight": "600", "color": "#0f172a" },
+                         "code": { "fontFamily": "JetBrains Mono, monospace" }
+                     },
+                     "sidebar": {
+                         "backgroundColor": "#fafafa",
+                         "textColor":       "#0f172a",
+                         "activeBgColor":   "#f0fdf4",
+                         "activeTextColor": "#059669"
+                     },
+                     "rightPanel": {
+                         "backgroundColor": "#0f172a",
+                         "textColor":       "#f8fafc"
                      }
-                 },
-                 "typography": { 
-                     "fontFamily": "Inter, sans-serif", 
-                     "headings": { "fontFamily": "Inter, sans-serif", "fontWeight": "700", "color": "#0f172a" },
-                     "code": { "fontFamily": "JetBrains Mono, monospace" }
-                 },
-                 "sidebar": {
-                     "backgroundColor": "#f8fafc",
-                     "textColor": "#0f172a",
-                     "activeBgColor": "#f0fdf4",
-                     "activeTextColor": "#059669"
-                 },
-                 "rightPanel": {
-                     "backgroundColor": "#0f172a",
-                     "textColor": "#f8fafc"
-                 }
-               }'>
-        </redoc>
-    </div>
+                   }'>
+            </redoc>
+        </div>
 
-    <script src="https://cdn.redoc.ly/redoc/latest/bundles/redoc.standalone.js"></script>
+    </div><!-- /main-content -->
+</div><!-- /page-wrapper -->
+
+<!-- Sidebar active link tracking -->
+<script>
+(function() {
+    const links = document.querySelectorAll('.sidebar-link');
+    const sections = Array.from(links)
+        .map(l => document.querySelector(l.getAttribute('href')))
+        .filter(Boolean);
+
+    function onScroll() {
+        let current = sections[0];
+        sections.forEach(s => {
+            if (window.scrollY >= s.offsetTop - 100) current = s;
+        });
+        links.forEach(l => {
+            l.classList.toggle('active', l.getAttribute('href') === '#' + current.id);
+        });
+    }
+
+    window.addEventListener('scroll', onScroll, { passive: true });
+    onScroll();
+})();
+</script>
+
+<script src="https://cdn.redoc.ly/redoc/latest/bundles/redoc.standalone.js"></script>
 </body>
 </html>
