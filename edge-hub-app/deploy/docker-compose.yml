@@ -6,7 +6,7 @@ services:
     # Legge le credenziali dal file .env (con fallback sicuri)
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-edgehub}
-      POSTGRES_USER: ${POSTGRES_USER:-edgehub_user}
+      POSTGRES_USER: ${POSTGRES_USER:-edgehub-user}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change_this_password}
     volumes:
       - postgres_data:/var/lib/postgresql/data
