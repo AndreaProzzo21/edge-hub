@@ -89,6 +89,12 @@ curl -# -fSL "${ENV_EXAMPLE_URL}" -o "${INSTALL_DIR}/.env.example" || _err "Down
 _ok ".env.example downloaded successfully"
 
 # --- 3. CONFIGURATION PROMPTS ---
+_step "Network & Exposure"
+_info "Which domain or IP will you use to access the Dashboard?"
+_info "This sets the CORS policy. Examples: https://hub.mydomain.com or http://192.168.1.10"
+_prompt "Dashboard URL (CORS Origin)" "*"
+CORS_ORIGINS="$REPLY"
+
 _step "Database Configuration"
 _info "Settings for the internal PostgreSQL database."
 _prompt "Database Name" "edge-hub"
@@ -124,7 +130,7 @@ fi
 
 _step "Monitoring & Heartbeat (Optional)"
 _info "How many seconds before a node is considered offline?"
-_prompt "Offline Threshold (seconds)" "90"
+_prompt "Offline Threshold (seconds)" "100"
 OFFLINE_THRESHOLD="$REPLY"
 
 # --- 4. GENERATING .ENV FILE ---
@@ -135,6 +141,9 @@ cat > "${ENV_FILE}" <<EOF
 # ==========================================
 # EdgeHub Server - Environment Variables
 # ==========================================
+
+# --- Network ---
+CORS_ORIGINS=${CORS_ORIGINS}
 
 # --- Database ---
 DATABASE_URL=${DATABASE_URL}
@@ -165,7 +174,8 @@ _ok "Containers started"
 echo -e "\n ${BGREEN}╔══════════════════════════════════════════════════════╗${C0}"
 echo -e " ${BGREEN}║${C0}  ${BOLD}EdgeHub Server is now up and running!${C0}               ${BGREEN}║${C0}"
 echo -e " ${BGREEN}╚══════════════════════════════════════════════════════╝${C0}\n"
-echo -e "  ${BOLD}Web Dashboard :${C0} http://$(curl -s ifconfig.me || echo "localhost")"
+echo -e "  ${BOLD}Web Dashboard :${C0} ${CORS_ORIGINS}"
+echo -e "  ${DIM}(Ensure your DNS/Tunnel routes traffic to this server's port 80)${C0}\n"
 echo -e "  ${BOLD}Admin API Key :${C0} ${BCYAN}${ADMIN_API_KEY}${C0} ${DIM}(Save this!)${C0}\n"
 echo -e "  ${DIM}Install path  :${C0} ${INSTALL_DIR}"
 echo -e "  ${DIM}Check status  :${C0} cd ${INSTALL_DIR} && ${DOCKER_CMD} ps"

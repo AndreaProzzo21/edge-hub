@@ -5,6 +5,8 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from .settings import settings
+
 from .infrastructure.database import create_tables
 from .services.offline_detector import offline_detector_loop
 from .services.heartbeat_cleanup import heartbeat_cleanup_task 
@@ -44,9 +46,12 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+# Parsa la stringa dal file .env dividendola per virgola e rimuovendo gli spazi
+allowed_origins = [origin.strip() for origin in settings.CORS_ORIGINS.split(",")]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=allowed_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
