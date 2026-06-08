@@ -162,68 +162,91 @@
   </div>
 </div>
 
+<style>
+  /* Stili per il modale */
+  .modal-info-banner {
+    background-color: rgba(59, 130, 246, 0.1);
+    border-left: 4px solid #3b82f6;
+    padding: 12px 16px;
+    border-radius: 0 6px 6px 0;
+    font-size: 0.85rem;
+    color: var(--text-main, #334155);
+    margin-bottom: 20px;
+    line-height: 1.5;
+  }
+  .terminal-window {
+    background-color: #0f172a;
+    border-radius: 8px;
+    overflow: hidden;
+    border: 1px solid #1e293b;
+    margin-top: 12px;
+  }
+  .terminal-header { background-color: #1e293b; display: flex; padding: 0 8px; border-bottom: 1px solid #0f172a; }
+  .terminal-tab { background: transparent; color: #94a3b8; border: none; padding: 10px 16px; font-size: 0.85rem; font-weight: 500; cursor: pointer; border-bottom: 2px solid transparent; transition: all 0.2s; }
+  .terminal-tab.active { color: #10b981; border-bottom: 2px solid #10b981; }
+  .cmd-tab-body { display: none; }
+  .cmd-tab-body.active { display: flex; }
+  .terminal-body { padding: 16px; align-items: flex-start; gap: 16px; }
+  .terminal-code { flex: 1; color: #a5d6ff; font-family: 'JetBrains Mono', monospace; font-size: 0.85rem; line-height: 1.6; word-break: break-all; margin: 0; }
+  .btn-terminal-copy { background-color: rgba(255, 255, 255, 0.1); color: #f8fafc; border: 1px solid rgba(255, 255, 255, 0.2); padding: 6px 12px; border-radius: 6px; font-size: 0.8rem; cursor: pointer; white-space: nowrap; }
+</style>
+
 <div id="modal-show-token" class="modal-backdrop hidden">
   <div class="modal modal-wide">
-    
     <div class="modal-header">
       <div class="modal-title">Installation Token</div>
-      <div class="modal-desc">
-        This is a single-use token: it will be permanently deleted upon successful registration or automatically invalidated when it expires.
-      </div>
     </div>
     
     <div class="modal-body">
-      <div class="form-group" style="margin-top: 16px;">
-        <label class="form-label">Raw Token (copy now — not stored)</label>
+      <!-- SELETTORE GLOBALE -->
+      <div class="tabs" style="margin-bottom: 20px;">
+        <button class="tab active" onclick="switchGlobalTab('linux')">Linux</button>
+        <button class="tab" onclick="switchGlobalTab('docker')">Docker</button>
+        <button class="tab" onclick="switchGlobalTab('kubernetes')">Kubernetes</button>
+      </div>
+
+      <div class="modal-info-banner" style="margin-bottom: 20px;">
+        <strong>Security Notice:</strong> This is a single-use token. It will be permanently deleted upon registration.
+      </div>
+      
+      <!-- RINNOVO (CAMBIA IN BASE AL TAB) -->
+      <div class="form-group">
+        <label class="form-label">1. Renewing an existing agent?</label>
+        <div class="modal-info-banner" style="background-color: rgba(59, 130, 246, 0.05); border-left-color: #3b82f6;">
+          <div id="renew-linux" class="renew-text">Delete local state: <code>rm /opt/edgehub/data/edgehub-state.json</code></div>
+          <div id="renew-docker" class="renew-text" style="display:none;">Delete local state: <code>rm /opt/edgehub/data/edgehub-state.json</code></div>
+          <div id="renew-kubernetes" class="renew-text" style="display:none;">Restart agent: <code>kubectl delete pod -l app=edgehub-agent</code></div>
+        </div>
+        
         <div class="token-box">
-          <span class="token-box-val" id="raw-token-val" style="word-break:break-all"></span>
+          <span class="token-box-val" id="raw-token-val" style="word-break:break-all; font-family: monospace;"></span>
           <button class="btn btn-secondary btn-sm" onclick="copyText(document.getElementById('raw-token-val').textContent, this)">Copy</button>
         </div>
-        <div style="font-size: 0.85rem; color: var(--text-muted); margin-top: 8px; line-height: 1.5;">
-          <strong>Renewing an existing agent?</strong> Replace the old token in your node's environment variables with this new one, then restart the agent service.
-        </div>
       </div>
       
-      <div class="form-group" style="margin-top: 24px;">
-        <label class="form-label">New Agent Installation Commands</label>
-        <div style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 12px; line-height: 1.5;">
-          <strong>Deploying a new node?</strong> Run one of the one-liners below. The Hub URL and token are automatically injected.
-        </div>
-        
-        <div class="tabs" style="margin-bottom:0; border-bottom:none;">
-          <button class="tab active" onclick="switchCmdTab('linux')">Linux</button>
-          <button class="tab" onclick="switchCmdTab('docker')">Docker</button>
-          <button class="tab" onclick="switchCmdTab('kubernetes')">Kubernetes</button>
-        </div>
-        
-        <div id="cmd-linux" class="cmd-tab-body active">
-          <div class="token-box" style="align-items: flex-start; padding: 12px;">
-            <div class="code-block" id="cmd-linux-val" style="margin: 0; padding: 0; background: transparent; border: none; flex: 1;"></div>
-            <button class="btn btn-secondary btn-sm" style="margin-left: 12px;" onclick="copyText(document.getElementById('cmd-linux-val').textContent, this)">Copy</button>
+      <!-- INSTALLAZIONE (CAMBIA IN BASE AL TAB) -->
+      <div class="form-group">
+        <label class="form-label">2. New Installation Command</label>
+        <div class="terminal-window">
+          <div id="cmd-linux" class="cmd-tab-body terminal-body active">
+            <div class="terminal-code" id="cmd-linux-val"></div>
+            <button class="btn-terminal-copy" onclick="copyText(document.getElementById('cmd-linux-val').textContent, this)">Copy</button>
           </div>
-        </div>
-        
-        <div id="cmd-docker" class="cmd-tab-body">
-          <div class="token-box" style="align-items: flex-start; padding: 12px;">
-            <div class="code-block" id="cmd-docker-val" style="margin: 0; padding: 0; background: transparent; border: none; flex: 1;"></div>
-            <button class="btn btn-secondary btn-sm" style="margin-left: 12px;" onclick="copyText(document.getElementById('cmd-docker-val').textContent, this)">Copy</button>
+          <div id="cmd-docker" class="cmd-tab-body terminal-body" style="display:none;">
+            <div class="terminal-code" id="cmd-docker-val"></div>
+            <button class="btn-terminal-copy" onclick="copyText(document.getElementById('cmd-docker-val').textContent, this)">Copy</button>
           </div>
-        </div>
-        
-        <div id="cmd-kubernetes" class="cmd-tab-body">
-          <div class="token-box" style="align-items: flex-start; padding: 12px;">
-            <div class="code-block" id="cmd-kubernetes-val" style="margin: 0; padding: 0; background: transparent; border: none; flex: 1;"></div>
-            <button class="btn btn-secondary btn-sm" style="margin-left: 12px;" onclick="copyText(document.getElementById('cmd-kubernetes-val').textContent, this)">Copy</button>
+          <div id="cmd-kubernetes" class="cmd-tab-body terminal-body" style="display:none;">
+            <div class="terminal-code" id="cmd-kubernetes-val"></div>
+            <button class="btn-terminal-copy" onclick="copyText(document.getElementById('cmd-kubernetes-val').textContent, this)">Copy</button>
           </div>
         </div>
       </div>
-      
     </div>
     
     <div class="modal-footer">
       <button class="btn btn-primary" onclick="closeModal('modal-show-token')">Done</button>
     </div>
-    
   </div>
 </div>
 
@@ -539,12 +562,21 @@ function scrollToBottom(element) {
     element.scrollTop = element.scrollHeight;
 }
 
-function switchCmdTab(name) {
-  ['linux','docker','kubernetes'].forEach(n => {
-    document.getElementById('cmd-'+n).classList.toggle('active', n===name);
+function switchGlobalTab(name) {
+  // 1. Aggiorna Tab attivi (bottoni sopra)
+  document.querySelectorAll('.tabs .tab').forEach(el => {
+    el.classList.toggle('active', el.textContent.toLowerCase() === name);
   });
-  document.querySelectorAll('#modal-show-token .tab').forEach((el, i) => {
-    el.classList.toggle('active', ['linux','docker','kubernetes'][i] === name);
+
+  // 2. Aggiorna istruzioni rinnovo
+  ['linux', 'docker', 'kubernetes'].forEach(n => {
+    const el = document.getElementById('renew-' + n);
+    if(el) el.style.display = (n === name) ? 'block' : 'none';
+  });
+
+  // 3. Aggiorna blocchi comando
+  ['linux', 'docker', 'kubernetes'].forEach(n => {
+    document.getElementById('cmd-'+n).style.display = (n === name) ? 'flex' : 'none';
   });
 }
 
