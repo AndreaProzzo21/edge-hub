@@ -164,10 +164,14 @@
 
 <div id="modal-show-token" class="modal-backdrop hidden">
   <div class="modal modal-wide">
+    
     <div class="modal-header">
       <div class="modal-title">Installation Token</div>
-      <div class="modal-desc">Copy the token and use it for one of the installations below. This is a single-use token: it will be permanently deleted upon successful registration or automatically invalidated when it expires.
+      <div class="modal-desc">
+        This is a single-use token: it will be permanently deleted upon successful registration or automatically invalidated when it expires.
       </div>
+    </div>
+    
     <div class="modal-body">
       <div class="form-group" style="margin-top: 16px;">
         <label class="form-label">Raw Token (copy now — not stored)</label>
@@ -175,30 +179,52 @@
           <span class="token-box-val" id="raw-token-val" style="word-break:break-all"></span>
           <button class="btn btn-secondary btn-sm" onclick="copyText(document.getElementById('raw-token-val').textContent, this)">Copy</button>
         </div>
+        <div style="font-size: 0.85rem; color: var(--text-muted); margin-top: 8px; line-height: 1.5;">
+          <strong>Renewing an existing agent?</strong> Replace the old token in your node's environment variables with this new one, then restart the agent service.
+        </div>
       </div>
-      <div class="form-group">
-        <label class="form-label">Installation Commands</label>
-        <div class="tabs" style="margin-bottom:0;border-bottom:none">
+      
+      <div class="form-group" style="margin-top: 24px;">
+        <label class="form-label">New Agent Installation Commands</label>
+        <div style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 12px; line-height: 1.5;">
+          <strong>Deploying a new node?</strong> Run one of the one-liners below. The Hub URL and token are automatically injected.
+        </div>
+        
+        <div class="tabs" style="margin-bottom:0; border-bottom:none;">
           <button class="tab active" onclick="switchCmdTab('linux')">Linux</button>
           <button class="tab" onclick="switchCmdTab('docker')">Docker</button>
           <button class="tab" onclick="switchCmdTab('kubernetes')">Kubernetes</button>
         </div>
+        
         <div id="cmd-linux" class="cmd-tab-body active">
-          <div class="code-block" id="cmd-linux-val"></div>
+          <div class="token-box" style="align-items: flex-start; padding: 12px;">
+            <div class="code-block" id="cmd-linux-val" style="margin: 0; padding: 0; background: transparent; border: none; flex: 1;"></div>
+            <button class="btn btn-secondary btn-sm" style="margin-left: 12px;" onclick="copyText(document.getElementById('cmd-linux-val').textContent, this)">Copy</button>
+          </div>
         </div>
+        
         <div id="cmd-docker" class="cmd-tab-body">
-          <div class="code-block" id="cmd-docker-val"></div>
+          <div class="token-box" style="align-items: flex-start; padding: 12px;">
+            <div class="code-block" id="cmd-docker-val" style="margin: 0; padding: 0; background: transparent; border: none; flex: 1;"></div>
+            <button class="btn btn-secondary btn-sm" style="margin-left: 12px;" onclick="copyText(document.getElementById('cmd-docker-val').textContent, this)">Copy</button>
+          </div>
         </div>
+        
         <div id="cmd-kubernetes" class="cmd-tab-body">
-          <div class="code-block" id="cmd-kubernetes-val"></div>
+          <div class="token-box" style="align-items: flex-start; padding: 12px;">
+            <div class="code-block" id="cmd-kubernetes-val" style="margin: 0; padding: 0; background: transparent; border: none; flex: 1;"></div>
+            <button class="btn btn-secondary btn-sm" style="margin-left: 12px;" onclick="copyText(document.getElementById('cmd-kubernetes-val').textContent, this)">Copy</button>
+          </div>
         </div>
       </div>
+      
     </div>
+    
     <div class="modal-footer">
       <button class="btn btn-primary" onclick="closeModal('modal-show-token')">Done</button>
     </div>
+    
   </div>
-</div>
 </div>
 
 <div id="modal-node-detail" class="modal-backdrop hidden">
