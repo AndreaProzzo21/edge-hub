@@ -231,7 +231,7 @@ async function saveNode() {
 }
 
 function deleteNode(id, name) {
-  confirmAction('Delete Node', `Delete node "${name}"? Token will be recycled.`, async () => {
+  confirmAction('Delete Node', `Delete node "${name}"? The agent on the node will be permanently unauthorized.`, async () => {
     try { await Nodes.delete(id); toast('Node deleted'); await loadNodes(); }
     catch(e) { toast(e.message, 'error'); }
   });
