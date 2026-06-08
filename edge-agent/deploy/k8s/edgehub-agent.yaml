@@ -74,18 +74,39 @@ spec:
         app: edgehub-agent
     spec:
       serviceAccountName: edgehub-agent-sa
+      
+      # --- MODIFICHE FONDAMENTALI PER VEDERE IL NODO HOST ---
+      hostNetwork: true  # Permette di leggere la rete e l'IP reali del nodo
+      hostPID: true      # Permette di vedere tutti i processi del nodo
+      # ------------------------------------------------------
+      
       containers:
         - name: agent
           image: aprozzo/edgehub-agent:latest
           imagePullPolicy: Always
-          # Le variabili d'ambiente vengono pescate dal Secret generato dallo script bash
+          # Le variabili d'ambiente di base vengono pescate dal Secret generato dallo script bash
           envFrom:
             - secretRef:
                 name: edgehub-agent-config
-          # Montaggio del volume persistente per la cartella data
+          
+          # Variabili extra per forzare gopsutil a leggere i file dell'host e non di Alpine
+          env:
+            - name: HOST_PROC
+              value: "/hostfs/proc"
+            - name: HOST_SYS
+              value: "/hostfs/sys"
+            - name: HOST_ETC
+              value: "/hostfs/etc"
+              
           volumeMounts:
+            # Montaggio del volume persistente per la cartella data (JWT Token)
             - name: edgehub-data
               mountPath: /data
+            # Montaggio della root dell'host in sola lettura
+            - name: hostfs
+              mountPath: /hostfs
+              readOnly: true
+              
           # Limiti di risorse per evitare che l'agente consumi troppo sul nodo
           resources:
             requests:
@@ -94,7 +115,13 @@ spec:
             limits:
               cpu: 100m
               memory: 128Mi
+              
       volumes:
         - name: edgehub-data
           persistentVolumeClaim:
             claimName: edgehub-agent-pvc
+        # Definiamo il volume che punta al vero disco del nodo fisico
+        - name: hostfs
+          hostPath:
+            path: /
+            type: Directory
