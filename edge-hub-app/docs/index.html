@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Developer Portal | EdgeHub</title>
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+
+    <style>
+        :root {
+            /* Elegant Palette: White and Green */
+            --primary: #059669; /* Elegant Green (Emerald 600) */
+            --primary-hover: #047857; /* Dark Green */
+            --bg-base: #ffffff; /* Clean Main Background */
+            --bg-subtle: #f0fdf4; /* Subtle Green Background for contrast */
+            --text-main: #0f172a; /* Primary Dark Text */
+            --text-muted: #64748b; /* Secondary Gray Text */
+            --border-color: #e2e8f0;
+        }
+
+        body { 
+            margin: 0; 
+            padding: 0; 
+            font-family: 'Inter', sans-serif; 
+            background-color: var(--bg-base);
+            color: var(--text-main);
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+        }
+
+        /* Top Navigation Bar */
+        .nav-header {
+            background-color: var(--bg-base);
+            padding: 0 30px;
+            height: 64px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+            border-bottom: 1px solid var(--border-color);
+            box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+        }
+
+        .nav-brand {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-weight: 700;
+            font-size: 1.2rem;
+            color: var(--text-main);
+            letter-spacing: -0.5px;
+        }
+
+        .nav-links a {
+            color: var(--text-muted);
+            text-decoration: none;
+            font-weight: 500;
+            font-size: 0.95rem;
+            margin-left: 24px;
+            transition: color 0.2s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .nav-links a:hover {
+            color: var(--primary);
+        }
+
+        /* Hero / Introduction Section */
+        .hero-section {
+            background: linear-gradient(180deg, var(--bg-subtle) 0%, var(--bg-base) 100%);
+            padding: 50px 30px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .hero-content {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .hero-title {
+            font-size: 2.2rem;
+            font-weight: 700;
+            margin: 0 0 16px 0;
+            color: var(--text-main);
+            letter-spacing: -0.5px;
+        }
+
+        .hero-title span {
+            color: var(--primary);
+        }
+
+        .hero-subtitle {
+            font-size: 1.1rem;
+            color: var(--text-muted);
+            margin: 0 0 30px 0;
+            font-weight: 400;
+            max-width: 800px;
+            line-height: 1.6;
+        }
+
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 24px;
+            margin-top: 20px;
+        }
+
+        .feature-card {
+            background: var(--bg-base);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 24px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+            transition: transform 0.2s ease, border-color 0.2s ease;
+        }
+
+        .feature-card:hover {
+            transform: translateY(-2px);
+            border-color: var(--primary);
+        }
+
+        .feature-card h3 {
+            margin: 0 0 12px 0;
+            font-size: 1.05rem;
+            color: var(--text-main);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .feature-card h3 i {
+            color: var(--primary);
+            background: var(--bg-subtle);
+            padding: 8px;
+            border-radius: 8px;
+        }
+
+        .feature-card p {
+            margin: 0;
+            font-size: 0.9rem;
+            color: var(--text-muted);
+            line-height: 1.6;
+        }
+
+        /* Redoc Container */
+        .redoc-container {
+            flex: 1;
+            position: relative;
+        }
+    </style>
+</head>
+<body>
+
+    <header class="nav-header">
+        <div class="nav-brand">
+            <i class="fas fa-network-wired" style="color: var(--primary);"></i>
+            EdgeHub
+        </div>
+        <div class="nav-links">
+            <a href="https://github.com/your-username/edge-hub" target="_blank">
+                <i class="fab fa-github"></i> Repository
+            </a>
+            <a href="https://github.com/your-username/edge-hub/blob/main/README.md" target="_blank">
+                <i class="fas fa-book"></i> Documentation
+            </a>
+        </div>
+    </header>
+
+    <section class="hero-section">
+        <div class="hero-content">
+            <h1 class="hero-title">Developer <span>API Portal</span></h1>
+            <p class="hero-subtitle">
+                Explore the official EdgeHub REST API. The Control Plane provides secure, asynchronous endpoints for node provisioning, real-time telemetry ingestion, and edge fleet management.
+            </p>
+            
+            <div class="features-grid">
+                <div class="feature-card">
+                    <h3><i class="fas fa-server"></i> Node Provisioning</h3>
+                    <p>Programmatically manage the agent lifecycle, secure JWT token generation, and access revocation.</p>
+                </div>
+                <div class="feature-card">
+                    <h3><i class="fas fa-chart-line"></i> Telemetry Ingestion</h3>
+                    <p>Optimized endpoints for high-throughput ingestion of hardware metrics and hybrid workloads from Docker and Kubernetes.</p>
+                </div>
+                <div class="feature-card">
+                    <h3><i class="fas fa-lock"></i> Security First</h3>
+                    <p>All routes require authentication. Use Admin API Keys for control operations, and strictly validated JWTs for edge nodes.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <div class="redoc-container">
+        <redoc spec-url='./openapi.json' 
+               expand-responses="200,201" 
+               hide-hostname="false" 
+               required-props-first="true"
+               theme='{
+                 "colors": { 
+                     "primary": { "main": "#059669" },
+                     "success": { "main": "#10b981" },
+                     "warning": { "main": "#f59e0b" },
+                     "error": { "main": "#ef4444" },
+                     "text": {
+                         "primary": "#0f172a",
+                         "secondary": "#64748b"
+                     },
+                     "http": {
+                         "get": "#10b981",
+                         "post": "#059669",
+                         "put": "#f59e0b",
+                         "delete": "#ef4444"
+                     }
+                 },
+                 "typography": { 
+                     "fontFamily": "Inter, sans-serif", 
+                     "headings": { "fontFamily": "Inter, sans-serif", "fontWeight": "700", "color": "#0f172a" },
+                     "code": { "fontFamily": "JetBrains Mono, monospace" }
+                 },
+                 "sidebar": {
+                     "backgroundColor": "#f8fafc",
+                     "textColor": "#0f172a",
+                     "activeBgColor": "#f0fdf4",
+                     "activeTextColor": "#059669"
+                 },
+                 "rightPanel": {
+                     "backgroundColor": "#0f172a",
+                     "textColor": "#f8fafc"
+                 }
+               }'>
+        </redoc>
+    </div>
+
+    <script src="https://cdn.redoc.ly/redoc/latest/bundles/redoc.standalone.js"></script>
+</body>
+</html>
