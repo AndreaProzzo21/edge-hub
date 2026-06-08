@@ -19,10 +19,10 @@ services:
       - .env
     environment:
       - EDGEHUB_STATE_FILE=/app/data/edgehub-state.json
-      # Passiamo variabili ambientali usate dalla libreria gopsutil
-      - HOST_PROC=/proc
-      - HOST_SYS=/sys
-      - HOST_ETC=/etc
+      # Diciamo a gopsutil di cercare le info dell'host dentro la cartella montata!
+      - HOST_PROC=/hostfs/proc
+      - HOST_SYS=/hostfs/sys
+      - HOST_ETC=/hostfs/etc
     tmpfs:
       - /tmp
     logging:
