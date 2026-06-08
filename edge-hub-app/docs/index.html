@@ -474,6 +474,8 @@
             padding: 4px 11px;
             border-radius: 20px;
             letter-spacing: 0.01em;
+            white-space: nowrap;
+            display: inline-block;
         }
 
         .badge-green  { background: var(--primary-light); color: var(--primary-hover); }
@@ -1079,7 +1081,11 @@
 
                 <div class="callout callout-info">
                     <i class="fas fa-circle-info"></i>
-                    <div>The dashboard auto-fills the correct <strong>API endpoint URL</strong> and <strong>registration token</strong> into each deployment command. You never need to manually construct these.</div>
+                    <div>
+                        The dashboard auto-fills the correct <strong>API endpoint URL</strong> and <strong>registration token</strong> into each deployment command. You never need to manually construct these.
+                        <br><br>
+                        The only case where you need to copy a new token and re-inject it as an environment variable — then restart the process, container, or deploy — is when a <strong>Node JWT has expired</strong>. The agent will have received a <code>401</code> response and shut down gracefully. By default, Node JWTs are valid for <strong>10 years</strong>, but this is configurable from the dashboard.
+                    </div>
                 </div>
 
                 <div class="topo-grid">
@@ -1091,7 +1097,6 @@
                         <div class="topo-body">
                             <p>Executed as a root-level background daemon. Designed for bare-metal servers, virtual machines, and IoT devices such as Raspberry Pi.</p>
                             <p>Reads hardware metrics directly from the Linux kernel. Automatically registers as a systemd service for auto-start on reboot.</p>
-                            <span class="topo-tag">EDGEHUB_MODE=linux</span>
                         </div>
                     </div>
                     <div class="topo-card">
@@ -1101,7 +1106,6 @@
                         </div>
                         <div class="topo-body">
                             <p>Runs as an isolated container. Binds to the host Docker socket to enumerate container states, and mounts host system volumes read-only to accurately calculate underlying hardware utilisation.</p>
-                            <span class="topo-tag">EDGEHUB_MODE=docker</span>
                         </div>
                     </div>
                     <div class="topo-card">
@@ -1112,7 +1116,6 @@
                         <div class="topo-body">
                             <p>Deploy one agent as a standard <code>Deployment</code> on a single node with RBAC and <code>hostNetwork</code>/<code>hostPID</code> configurations to interface with the cluster API and report pod health.</p>
                             <p>For remaining worker/master nodes, deploy the Linux Native agent for basic telemetry and heartbeats.</p>
-                            <span class="topo-tag">EDGEHUB_MODE=kubernetes</span>
                         </div>
                     </div>
                 </div>
