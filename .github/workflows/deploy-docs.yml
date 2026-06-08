@@ -1,0 +1,42 @@
+name: Deploy EdgeHub Docs to GitHub Pages
+
+# La pipeline si attiva ogni volta che fai un push sul branch "main"
+# ma SOLO se ci sono state modifiche dentro la cartella "docs/"
+on:
+  push:
+    branches: ["main"]
+    paths:
+      - 'edge-hub-app/docs/**'
+
+# Imposta i permessi necessari al bot di GitHub per pubblicare la pagina
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Evita accavallamenti se fai due push molto veloci
+concurrency:
+  group: "pages"
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout del codice
+        uses: actions/checkout@v4
+
+      - name: Setup di GitHub Pages
+        uses: actions/configure-pages@v4
+
+      - name: Carica i file come artefatto
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: './edge-hub-app/docs'
+
+      - name: Pubblica su GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
