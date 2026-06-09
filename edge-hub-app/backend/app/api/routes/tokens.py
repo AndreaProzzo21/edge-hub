@@ -16,6 +16,11 @@ AdminSessionDep = Depends(get_admin_session)
 def generate_installation_commands(request: Request, raw_token: str) -> dict:
     base_url = str(request.base_url).rstrip("/")
 
+    # Fix per TLS Termination: se il proxy ci dice che la richiesta originale era HTTPS,
+    # forziamo la stringa base_url a usare https://
+    if request.headers.get("x-forwarded-proto") == "https":
+        base_url = base_url.replace("http://", "https://", 1)
+
     return {
         "linux": f"curl -sSL https://raw.githubusercontent.com/AndreaProzzo21/edge-hub/main/edge-agent/scripts/install-linux.sh -o /tmp/install-linux.sh && EDGEHUB_URL='{base_url}' EDGEHUB_TOKEN='{raw_token}' sudo -E bash /tmp/install-linux.sh",
         "docker": f"curl -sSL https://raw.githubusercontent.com/AndreaProzzo21/edge-hub/main/edge-agent/scripts/install-docker.sh -o /tmp/install-docker.sh && EDGEHUB_URL='{base_url}' EDGEHUB_TOKEN='{raw_token}' sudo -E bash /tmp/install-docker.sh",
