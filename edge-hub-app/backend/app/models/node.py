@@ -1,6 +1,6 @@
 from datetime import datetime
 from enum import Enum
-from sqlalchemy import DateTime, ForeignKey, String, Float, Column, Integer, Boolean
+from sqlalchemy import DateTime, ForeignKey, String, Float, Column, Integer, Boolean, JSON
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from .base import Base
@@ -21,8 +21,6 @@ class Node(Base):
     id: Mapped[str] = mapped_column(String, primary_key=True)
     site_id: Mapped[str] = mapped_column(ForeignKey("sites.id", ondelete="CASCADE"), index=True)
     
-    # Rimosso token_id e foreign key
-
     hostname: Mapped[str] = mapped_column(String(256))
     description: Mapped[str | None] = mapped_column(String(512), nullable=True)
     agent_type: Mapped[str] = mapped_column(String(32))
@@ -38,9 +36,14 @@ class Node(Base):
     offline_cycles = Column(Integer, default=0, nullable=False)
     offline_alert_sent = Column(Boolean, default=False, nullable=False)
 
+    # --- COMMAND & CONTROL & SICUREZZA ---
+    pending_command: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    active_jti: Mapped[str | None] = mapped_column(String(36), nullable=True)
+    pending_jti: Mapped[str | None] = mapped_column(String(36), nullable=True)
+    jwt_expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
     # Relazioni
     site: Mapped["Site"] = relationship(back_populates="nodes")
-    # Rimossa la relazione con il token
     heartbeats: Mapped[list["Heartbeat"]] = relationship(
         back_populates="node", 
         cascade="all, delete-orphan"

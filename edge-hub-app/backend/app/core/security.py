@@ -1,5 +1,6 @@
 import hashlib
 import secrets
+import uuid
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 
@@ -71,17 +72,24 @@ def _hash_token(token: str) -> str:
 # Agent JWT helpers
 # ---------------------------------------------------------------------------
 
-def create_agent_jwt(node_id: str) -> str:
-    expire = datetime.now(timezone.utc) + timedelta(minutes=settings.JWT_EXPIRE_MINUTES)
+def create_agent_jwt(node_id: str) -> tuple[str, str, datetime]:
+    """Genera il JWT e restituisce: token, JTI (ID univoco) e datetime di scadenza."""
+    jti = str(uuid.uuid4())
+    expire_dt = datetime.now(timezone.utc) + timedelta(minutes=settings.JWT_EXPIRE_MINUTES)
+    
     payload = {
         "sub": node_id,
         "type": "agent",
-        "exp": expire,
+        "exp": expire_dt,
+        "jti": jti,
     }
-    return jwt.encode(payload, settings.JWT_SECRET_KEY, algorithm=settings.JWT_ALGORITHM)
+    token = jwt.encode(payload, settings.JWT_SECRET_KEY, algorithm=settings.JWT_ALGORITHM)
+    return token, jti, expire_dt
 
-def decode_agent_jwt(token: str) -> str:
+# ECCO LA FUNZIONE RINOMINATA CORRETTAMENTE:
+def decode_agent_jwt_full(token: str) -> dict:
+    """Restituisce l'intero payload decodificato per poter leggere sub, jti e exp."""
     payload = jwt.decode(token, settings.JWT_SECRET_KEY, algorithms=[settings.JWT_ALGORITHM])
     if payload.get("type") != "agent":
         raise JWTError("Token type mismatch")
-    return payload["sub"]
+    return payload

@@ -9,7 +9,8 @@ from jose import JWTError
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ...core.security import create_agent_jwt, decode_agent_jwt
+# CAMBIO IMPORT: Usiamo decode_agent_jwt_full
+from ...core.security import create_agent_jwt, decode_agent_jwt_full
 from ...infrastructure.database import get_db
 from ...models.heartbeat import Heartbeat
 from ...models.node import Node, NodeStatus
@@ -24,15 +25,18 @@ router = APIRouter(prefix="/agents", tags=["agents"])
 bearer = HTTPBearer()
 
 # ---------------------------------------------------------------------------
-# Dependency: La "Ghigliottina". Se il nodo è stato cancellato dal DB, 
-# restituisce 401 e l'agente remoto si autodistrugge in modo pulito.
+# Dependency: La "Ghigliottina" con controllo Rolling JTI
 # ---------------------------------------------------------------------------
 async def get_current_node(
     credentials: HTTPAuthorizationCredentials = Depends(bearer),
     db: AsyncSession = Depends(get_db),
 ) -> Node:
     try:
-        node_id = decode_agent_jwt(credentials.credentials)
+        # Decodifichiamo l'intero payload
+        payload = decode_agent_jwt_full(credentials.credentials)
+        node_id = payload["sub"]
+        token_jti = payload.get("jti")
+        token_exp = payload.get("exp")
     except JWTError:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -45,6 +49,31 @@ async def get_current_node(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Node not found or revoked by administrator",
         )
+
+    # --- LOGICA DI REVOCA ROLLING JTI ---
+    if not token_jti:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, 
+            detail="Legacy token without JTI is no longer supported"
+        )
+
+    if token_jti == node.active_jti:
+        pass # Tutto ok, sta usando il token attivo
+    elif token_jti == node.pending_jti:
+        # L'agente ha usato il NUOVO token per la prima volta!
+        # Consolidiamo lo stato: il pendente diventa l'attivo.
+        node.active_jti = node.pending_jti
+        node.pending_jti = None
+        if token_exp:
+            node.jwt_expires_at = datetime.fromtimestamp(token_exp, timezone.utc)
+        await db.commit() # Salviamo subito il cambio di stato
+    else:
+        # Il token è crittograficamente valido, ma il suo JTI non è autorizzato.
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, 
+            detail="Token has been explicitly revoked"
+        )
+
     return node
 
 
@@ -86,12 +115,15 @@ async def register_agent(
 
     # 3. IL TOKEN KAMIKAZE: Il token ha fatto il suo lavoro, lo distruggiamo per sempre.
     await db.delete(db_token)
+    await db.flush() # Flush per assicurarci che il nodo sia pronto
 
+    # 4. Emetti il JWT dell'agente e salva JTI e Scadenza
+    agent_token, jti, expire_dt = create_agent_jwt(node.id)
+    node.active_jti = jti
+    node.jwt_expires_at = expire_dt
+    
     await db.commit()
     await db.refresh(node)
-
-    # 4. Emetti il JWT dell'agente a lunghissima scadenza (es. 10 anni)
-    agent_token = create_agent_jwt(node.id)
 
     asyncio.create_task(ws_manager.broadcast(node.site_id, {
         "event_type": "node_registered",
@@ -143,6 +175,13 @@ async def heartbeat(
         node.offline_cycles = 0
         node.offline_alert_sent = False
 
+    # --- LOGICA: COMMAND & CONTROL ---
+    command_to_send = None
+    if getattr(node, 'pending_command', None):
+        command_to_send = node.pending_command
+        # Svuota la cassetta della posta dopo aver prelevato il comando
+        node.pending_command = None
+
     await db.commit()
 
     asyncio.create_task(ws_manager.broadcast(node.site_id, {
@@ -157,7 +196,11 @@ async def heartbeat(
         }
     }))
     
-    return HeartbeatResponse(node_id=node.id, timestamp=now)
+    return HeartbeatResponse(
+        node_id=node.id, 
+        timestamp=now,
+        command=command_to_send
+    )
 
 
 @router.get("/me")

@@ -4,6 +4,12 @@ from typing import Any
 from pydantic import BaseModel, Field
 
 
+# --- NUOVI SCHEMAS PER IL COMMAND & CONTROL ---
+class AgentCommand(BaseModel):
+    action: str = Field(..., description="Il tipo di azione, ad esempio 'update_jwt'")
+    payload: dict[str, Any] = Field(..., description="I dati necessari all'azione, ad esempio {'new_token': '...'}")
+
+
 class HeartbeatRequest(BaseModel):
     # Metriche base — obbligatorie
     cpu_usage: float = Field(..., ge=0, le=100)
@@ -20,6 +26,8 @@ class HeartbeatResponse(BaseModel):
     status: str = "ok"
     node_id: str
     timestamp: datetime
+    # Aggiungiamo il campo command. Se è None, l'agente Go sa che non c'è nulla da fare.
+    command: AgentCommand | None = None 
 
 
 class HeartbeatRecord(BaseModel):

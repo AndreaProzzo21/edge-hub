@@ -1,4 +1,5 @@
 from datetime import datetime
+from typing import Any
 from pydantic import BaseModel, Field
 
 class NodeResponse(BaseModel):
@@ -17,9 +18,16 @@ class NodeResponse(BaseModel):
     last_seen: datetime | None
     created_at: datetime
     
-    # --- NUOVI CAMPI ALERT ENGINE ---
+    # --- CAMPI ALERT ENGINE ---
     offline_cycles: int
     offline_alert_sent: bool
+
+    # --- CAMPI COMMAND & CONTROL & SICUREZZA ---
+    # Mostra se c'è un comando in attesa di essere ritirato dall'agente
+    pending_command: dict[str, Any] | None = None
+    
+    # Mostra la data di scadenza reale del JWT attualmente attivo
+    jwt_expires_at: datetime | None = None
 
     model_config = {"from_attributes": True}
 
