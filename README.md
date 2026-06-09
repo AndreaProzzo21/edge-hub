@@ -93,7 +93,7 @@ The recommended method to deploy the **EdgeHub Backend and Dashboard** is via Do
 Run the interactive installation script on your master server:
 
 ```bash
-curl -sSL https://raw.githubusercontent.com/AndreaProzzo21/edge-hub/main/edge-hub-app/deploy/install.sh | sudo bash
+curl -sSL https://raw.githubusercontent.com/AndreaProzzo21/edge-hub/main/edge-hub-app/scripts/install.sh | sudo bash
 
 ```
 
@@ -121,4 +121,4 @@ Once the Control Plane is online, log in to the web interface to generate secure
 
 EdgeHub provides a fully documented REST API. For implementation guides, database schemas, and endpoint references, please refer to our official documentation hosted on GitHub Pages.
 
-**[View Official API Documentation](https://www.google.com/search?q=https://%3Cyour-username%3E.github.io/%3Cyour-repo-name%3E/)**
+**[View Official API Documentation](https://andreaprozzo21.github.io/edge-hub/)**
