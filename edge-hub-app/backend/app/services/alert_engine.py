@@ -18,7 +18,6 @@ async def send_discord_alert(webhook_url: str, node: Node, site: Site) -> None:
         "content": f"🚨 **EDGEHUB ALERT** 🚨\nNode **`{node.hostname}`** at site **`{site.name}`** is OFFLINE."
     }
     
-    # Use httpx for non-blocking asynchronous HTTP calls
     async with httpx.AsyncClient() as client:
         try:
             response = await client.post(webhook_url, json=payload, timeout=5.0)
@@ -27,27 +26,26 @@ async def send_discord_alert(webhook_url: str, node: Node, site: Site) -> None:
         except Exception as e:
             logger.error("Error sending Discord webhook for node %s: %s", node.hostname, e)
 
+
 async def send_slack_alert(webhook_url: str, node: Node, site: Site) -> None:
     """Sends an offline alert to a Slack webhook."""
-    # Note: Slack uses a single '*' for bold text, unlike Discord's '**'
     payload = {
         "text": f"🚨 *EDGEHUB ALERT* 🚨\nNode *`{node.hostname}`* at site *`{site.name}`* is OFFLINE."
     }
     
-    # Use httpx for non-blocking asynchronous HTTP calls
     async with httpx.AsyncClient() as client:
         try:
             response = await client.post(webhook_url, json=payload, timeout=5.0)
             response.raise_for_status()
-            logger.info("Slack alert sent successfully for node: %s", node.name)
+            # FIX: Cambiato node.name in node.hostname
+            logger.info("Slack alert sent successfully for node: %s", node.hostname)
         except Exception as e:
-            logger.error("Error sending Slack webhook for node %s: %s", node.name, e)
+            # FIX: Cambiato node.name in node.hostname
+            logger.error("Error sending Slack webhook for node %s: %s", node.hostname, e)
 
 
 async def dispatch_offline_alerts(node: Node, site: Site) -> None:
-    """
-    Checks which webhooks are configured for the site and dispatches them concurrently.
-    """
+    """Checks which webhooks are configured for the site and dispatches them concurrently."""
     tasks = []
     
     if site.discord_webhook_url:
@@ -56,9 +54,9 @@ async def dispatch_offline_alerts(node: Node, site: Site) -> None:
     if site.slack_webhook_url:
         tasks.append(send_slack_alert(site.slack_webhook_url, node, site))
         
-    # Execute all configured HTTP calls in parallel
     if tasks:
         await asyncio.gather(*tasks)
+
 
 async def send_discord_recovery(webhook_url: str, node: Node, site: Site) -> None:
     """Sends a recovery alert to a Discord webhook."""
@@ -70,9 +68,11 @@ async def send_discord_recovery(webhook_url: str, node: Node, site: Site) -> Non
         try:
             response = await client.post(webhook_url, json=payload, timeout=5.0)
             response.raise_for_status()
-            logger.info("Discord recovery alert sent successfully for node: %s", node.name)
+            # FIX: Cambiato node.name in node.hostname
+            logger.info("Discord recovery alert sent successfully for node: %s", node.hostname)
         except Exception as e:
-            logger.error("Error sending Discord recovery webhook for node %s: %s", node.name, e)
+            # FIX: Cambiato node.name in node.hostname
+            logger.error("Error sending Discord recovery webhook for node %s: %s", node.hostname, e)
 
 
 async def send_slack_recovery(webhook_url: str, node: Node, site: Site) -> None:
@@ -85,15 +85,15 @@ async def send_slack_recovery(webhook_url: str, node: Node, site: Site) -> None:
         try:
             response = await client.post(webhook_url, json=payload, timeout=5.0)
             response.raise_for_status()
-            logger.info("Slack recovery alert sent successfully for node: %s", node.name)
+            # FIX: Cambiato node.name in node.hostname
+            logger.info("Slack recovery alert sent successfully for node: %s", node.hostname)
         except Exception as e:
-            logger.error("Error sending Slack recovery webhook for node %s: %s", node.name, e)
+            # FIX: Cambiato node.name in node.hostname
+            logger.error("Error sending Slack recovery webhook for node %s: %s", node.hostname, e)
 
 
 async def dispatch_recovery_alerts(node: Node, site: Site) -> None:
-    """
-    Checks which webhooks are configured for the site and dispatches recovery alerts concurrently.
-    """
+    """Checks which webhooks are configured for the site and dispatches recovery alerts concurrently."""
     tasks = []
     
     if site.discord_webhook_url:
