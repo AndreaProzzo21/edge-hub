@@ -14,11 +14,14 @@ router = APIRouter(prefix="/sites", tags=["tokens"])
 AdminSessionDep = Depends(get_admin_session)
 
 def generate_installation_commands(request: Request, raw_token: str) -> dict:
+    # Estrarre l'URL base nativo elaborato da Uvicorn
     base_url = str(request.base_url).rstrip("/")
 
-    # Fix per TLS Termination: se il proxy ci dice che la richiesta originale era HTTPS,
-    # forziamo la stringa base_url a usare https://
-    if request.headers.get("x-forwarded-proto") == "https":
+    # Doppia barriera di sicurezza: se Uvicorn l'ha capito da solo OR se l'header è presente,
+    # forziamo il protocollo in https (escludendo i test locali su localhost)
+    is_https = request.headers.get("x-forwarded-proto") == "https" or request.url.scheme == "https"
+    
+    if is_https and "localhost" not in base_url and "127.0.0.1" not in base_url:
         base_url = base_url.replace("http://", "https://", 1)
 
     return {
