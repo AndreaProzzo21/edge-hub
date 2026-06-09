@@ -51,7 +51,7 @@
           </div>
           <div class="card-body">
             <p class="doc-text">
-              The Edge Agent is a standalone Go binary with zero external dependencies, supporting both AMD64 and ARM64 architectures. It operates with a minimal resource footprint.
+              The Edge Agent is a standalone self-contained Go binary, supporting both AMD64 and ARM64 architectures. It operates with a minimal resource footprint.
             </p>
             <p class="doc-text" style="font-weight: 500; margin-top: 16px;">Registration Flow:</p>
             <ul class="doc-list">
@@ -63,7 +63,7 @@
             <p class="doc-text" style="font-weight: 500; margin-top: 16px; color: var(--danger);">Security & Revocation:</p>
             <ul class="doc-list">
               <li>If a node is compromised, administrators can delete it via the EdgeHub dashboard. This instantly invalidates the JWT on the backend.</li>
-              <li><strong>Self-Cleanup Protocol:</strong> Upon receiving a <code>401 Unauthorized</code> response, the revoked agent automatically deletes its local state file and gracefully halts, preventing zombie processes and bandwidth waste.</li>
+              <li><strong>Self-Cleanup Protocol:</strong> Upon receiving a <code>401 Unauthorized</code> response, the revoked agent gracefully halts, preventing zombie processes and bandwidth waste.</li>
             </ul>
           </div>
         </div>
