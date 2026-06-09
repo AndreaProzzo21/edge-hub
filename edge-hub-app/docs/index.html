@@ -797,7 +797,6 @@
 </head>
 <body>
 
-<!-- ─── TOPNAV ─── -->
 <header class="topnav">
     <a class="nav-brand" href="#">
         <div class="brand-icon">
@@ -815,7 +814,6 @@
 
 <div class="page-wrapper">
 
-    <!-- ─── SIDEBAR ─── -->
     <nav class="sidebar">
         <div class="sidebar-section">
             <div class="sidebar-label">Overview</div>
@@ -867,15 +865,13 @@
         </div>
     </nav>
 
-    <!-- ─── MAIN ─── -->
     <div class="main-content">
 
-        <!-- HERO -->
         <section class="hero" id="overview">
             <p class="hero-eyebrow">Developer Portal</p>
             <h1 class="hero-title">EdgeHub <span>API Documentation</span></h1>
             <p class="hero-desc">
-                EdgeHub is a high-performance telemetry and observability platform designed to monitor distributed edge devices, virtual machines, and containerised workloads. The Control Plane exposes secure, asynchronous REST endpoints for node provisioning, real-time telemetry ingestion, and edge fleet management.
+                EdgeHub is a high-performance telemetry and observability platform designed to monitor distributed edge devices, virtual machines, and containerised workloads. The Control Plane exposes secure, asynchronous REST endpoints for node provisioning, real-time telemetry ingestion, secure Command & Control (C2), and edge fleet management.
             </p>
             <div class="hero-cards">
                 <div class="hero-card">
@@ -901,10 +897,8 @@
             </div>
         </section>
 
-        <!-- DOC BODY -->
         <div class="doc-body">
 
-            <!-- ARCHITECTURE -->
             <section class="section-anchor" id="architecture">
                 <h2 class="section-title"><i class="fas fa-diagram-project"></i> System Architecture</h2>
                 <p class="section-subtitle">The platform operates on a strictly decoupled client-server architecture divided into a Control Plane and a Data Plane.</p>
@@ -923,14 +917,11 @@
                             <i class="fas fa-microchip"></i>
                             <h4>Data Plane — Agent</h4>
                         </div>
-                        <!-- FIX 1: "zero-dependency" → "self-contained binary" -->
                         <p>A self-contained, multi-architecture <strong>Go binary</strong> (AMD64 &amp; ARM64). Statically compiled with all dependencies bundled — no runtime installation required on the target node. It auto-detects its environment and operates on a push-based telemetry loop with a minimal resource footprint.</p>
-                        <!-- FIX 2: Fail-Fast accuracy — no mention of state file deletion, correct systemd behaviour -->
                         <p><strong>Fail-Fast Security:</strong> The agent respects immediate revocation. Upon a <code>401</code> response, the agent exits immediately via <code>os.Exit</code>, preventing further heartbeat attempts and bandwidth waste. When deployed as a systemd service, the unit file is configured with <code>RestartPreventExitCodes</code> to ensure the process is not restarted after an intentional termination.</p>
                     </div>
                 </div>
 
-                <!-- Sequence diagram -->
                 <h3 style="font-size:0.95rem; font-weight:600; color:var(--text-main); margin:0 0 10px;">Request Lifecycle</h3>
                 <div class="sequence-block">
                     <div class="seq-phase provision">
@@ -950,12 +941,12 @@
                         <div class="seq-line"><span class="actor">Agent</span> <span class="arrow">──────────────</span> <span class="note">Save JWT to edgehub-state.json</span></div>
                     </div>
                     <div class="seq-phase telemetry">
-                        <div class="seq-label">3 · Continuous Telemetry Loop (every N seconds)</div>
+                        <div class="seq-label">3 · Continuous Telemetry &amp; C2 Loop</div>
                         <div class="seq-line"><span class="actor">Agent</span> <span class="arrow">──────────────</span> <span class="note">Collect base &amp; extra metrics (Docker / K8s)</span></div>
                         <div class="seq-line"><span class="actor">Agent</span> <span class="arrow">─────────────▶</span> <span class="method">POST /agents/heartbeat</span> <span class="note">// Bearer JWT</span></div>
-                        <div class="seq-line"><span class="actor">API  </span> <span class="arrow">◀─────────────</span> <span class="status">200 OK</span> <span class="note">// Update last_seen, append telemetry</span></div>
+                        <div class="seq-line"><span class="actor">API  </span> <span class="arrow">◀─────────────</span> <span class="status">200 OK</span> <span class="note">// Update last_seen, return pending C2 commands</span></div>
+                        <div class="seq-line"><span class="actor">Agent</span> <span class="arrow">──────────────</span> <span class="note">Execute commands (e.g. rotate token) and update local state</span></div>
                     </div>
-                    <!-- FIX 3: Sequence diagram revocation — removed "delete state" -->
                     <div class="seq-phase revoke">
                         <div class="seq-label">4 · Security &amp; Revocation</div>
                         <div class="seq-line"><span class="actor">Admin</span> <span class="arrow">─────────────▶</span> <span class="method">DELETE /nodes/:id</span> <span class="note">// Revoke / delete node</span></div>
@@ -969,7 +960,6 @@
 
             <hr class="section-divider">
 
-            <!-- BACKEND SETUP -->
             <section class="section-anchor" id="backend-setup">
                 <h2 class="section-title"><i class="fas fa-server"></i> Backend Deployment</h2>
                 <p class="section-subtitle">The recommended method to deploy EdgeHub is via the interactive installation script. It orchestrates FastAPI, PostgreSQL, and Nginx as isolated Docker Compose services.</p>
@@ -1024,7 +1014,6 @@
 
             <hr class="section-divider">
 
-            <!-- SECURITY -->
             <section class="section-anchor" id="security-config">
                 <h2 class="section-title"><i class="fas fa-lock"></i> Security Configuration</h2>
                 <p class="section-subtitle">EdgeHub follows a Bring Your Own Reverse Proxy philosophy. These requirements must be satisfied before exposing the platform to the internet.</p>
@@ -1072,12 +1061,25 @@
                             <p>Admin API Keys gate all control-plane operations. Edge node JWTs are strictly scoped — they may only submit heartbeats, nothing more.</p>
                         </div>
                     </div>
+                    <div class="security-item">
+                        <div class="security-icon blue"><i class="fas fa-arrows-rotate"></i></div>
+                        <div class="security-text">
+                            <h4>Zero-Downtime Rotation</h4>
+                            <p>Agent JWTs are rotated seamlessly using a Rolling JTI mechanism. Old tokens remain valid just until the new token is acknowledged by the agent.</p>
+                        </div>
+                    </div>
+                    <div class="security-item">
+                        <div class="security-icon green"><i class="fas fa-satellite-dish"></i></div>
+                        <div class="security-text">
+                            <h4>Unidirectional C2</h4>
+                            <p>Agents poll for commands via heartbeats. No inbound ports need to be opened on the edge firewall, ensuring strict NAT compatibility.</p>
+                        </div>
+                    </div>
                 </div>
             </section>
 
             <hr class="section-divider">
 
-            <!-- AGENT DEPLOY -->
             <section class="section-anchor" id="agent-deploy">
                 <h2 class="section-title"><i class="fas fa-microchip"></i> Deploying Agents</h2>
                 <p class="section-subtitle">Agent deployment is managed from the EdgeHub Dashboard. Log in, generate a registration token for the target site, and use the pre-configured copy-paste commands.</p>
@@ -1087,7 +1089,7 @@
                     <div>
                         The dashboard auto-fills the correct <strong>API endpoint URL</strong> and <strong>registration token</strong> into each deployment command. You never need to manually construct these.
                         <br><br>
-                        The only case where you need to copy a new token and re-inject it as an environment variable — then restart the process, container, or deploy — is when a <strong>Node JWT has expired</strong>. The agent will have received a <code>401</code> response and shut down. By default, Node JWTs are valid for <strong>10 years</strong>, but this is configurable from the dashboard.
+                        The only case where you need to copy a new token and re-inject it as an environment variable — then restart the process, container, or deploy — is when a <strong>Node JWT has fully expired and disconnected</strong>. The agent will have received a <code>401</code> response and shut down.
                     </div>
                 </div>
 
@@ -1126,7 +1128,6 @@
 
             <hr class="section-divider">
 
-            <!-- AGENT LIFECYCLE -->
             <section class="section-anchor" id="agent-lifecycle">
                 <h2 class="section-title"><i class="fas fa-rotate"></i> Agent Lifecycle &amp; Authentication</h2>
                 <p class="section-subtitle">The agent operates a well-defined state machine from first-boot registration through continuous telemetry to eventual revocation.</p>
@@ -1156,13 +1157,19 @@
                     <div class="step">
                         <div class="step-num">4</div>
                         <div class="step-body">
-                            <h4>Continuous Heartbeat</h4>
-                            <p>Every N seconds the agent collects base metrics (CPU, RAM, disk, uptime) plus environment-specific data (Docker container states or Kubernetes pod health) and posts them to <code>POST /api/v1/agents/heartbeat</code> with a Bearer JWT.</p>
+                            <h4>Continuous Heartbeat &amp; C2</h4>
+                            <p>Every N seconds the agent collects base metrics (CPU, RAM, disk, uptime) plus environment-specific data (Docker container states or Kubernetes pod health) and posts them to <code>POST /api/v1/agents/heartbeat</code> with a Bearer JWT. The response includes any pending Command &amp; Control instructions.</p>
                         </div>
                     </div>
-                    <!-- FIX 4: Revocation step — accurate description, no mention of state file deletion -->
                     <div class="step">
                         <div class="step-num">5</div>
+                        <div class="step-body">
+                            <h4>Zero-Downtime Token Rotation</h4>
+                            <p>Administrators can queue a JWT renewal via the backend. The agent retrieves the new token during its next heartbeat, seamlessly updates its local <code>edgehub-state.json</code>, and transitions to the new cryptographic identity without downtime.</p>
+                        </div>
+                    </div>
+                    <div class="step">
+                        <div class="step-num">6</div>
                         <div class="step-body">
                             <h4>Revocation &amp; Shutdown</h4>
                             <p>If the backend returns <code>401 Unauthorized</code>, the agent exits immediately via <code>os.Exit</code>. The <code>edgehub-state.json</code> file is intentionally retained on disk — this prevents the agent from attempting to re-register with an already-consumed registration token on its next start. Re-provisioning requires an admin to generate a new token, update the environment variable on the node, delete the state file manually, and restart the service.</p>
@@ -1173,7 +1180,6 @@
 
             <hr class="section-divider">
 
-            <!-- ALERTING -->
             <section class="section-anchor" id="alerting">
                 <h2 class="section-title"><i class="fas fa-bell"></i> Alerting &amp; State Management</h2>
                 <p class="section-subtitle">Third-party webhooks (Discord, Slack) can be configured at the Site level. EdgeHub implements a buffered evaluation mechanism to prevent false positives from transient network instability.</p>
@@ -1223,7 +1229,6 @@
 
             <hr class="section-divider">
 
-            <!-- TELEMETRY RETENTION — NEW SECTION -->
             <section class="section-anchor" id="data-retention">
                 <h2 class="section-title"><i class="fas fa-clock"></i> Telemetry Retention &amp; Cleanup</h2>
                 <p class="section-subtitle">EdgeHub automatically purges historical heartbeat records to keep the database lean and prevent unbounded growth over time.</p>
@@ -1264,7 +1269,6 @@
 
             <hr class="section-divider">
 
-            <!-- API AUTH -->
             <section class="section-anchor" id="api-auth">
                 <h2 class="section-title"><i class="fas fa-key"></i> API Authentication</h2>
                 <p class="section-subtitle">All routes require authentication. Two credential types are in use depending on the caller identity.</p>
@@ -1303,7 +1307,6 @@
 
             <hr class="section-divider">
 
-            <!-- API SCHEMA -->
             <section class="section-anchor" id="api-schema">
                 <h2 class="section-title"><i class="fas fa-database"></i> Data Schema</h2>
                 <p class="section-subtitle">EdgeHub uses a hybrid relational + JSON schema for telemetry. Core metrics are strictly typed columns; environment-specific extras live in a <code>JSON</code> column.</p>
@@ -1345,10 +1348,7 @@
                 </div>
             </section>
 
-        </div><!-- /doc-body -->
-
-        <!-- REDOC SECTION -->
-        <div class="redoc-divider"></div>
+        </div><div class="redoc-divider"></div>
         <div class="redoc-header" id="api-endpoints">
             <div>
                 <h2>Interactive API Reference</h2>
@@ -1398,11 +1398,7 @@
             </redoc>
         </div>
 
-    </div><!-- /main-content -->
-</div><!-- /page-wrapper -->
-
-<!-- Sidebar active link tracking -->
-<script>
+    </div></div><script>
 (function() {
     const links = document.querySelectorAll('.sidebar-link');
     const sections = Array.from(links)

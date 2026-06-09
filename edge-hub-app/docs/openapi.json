@@ -2,64 +2,96 @@
   "openapi": "3.1.0",
   "info": {
     "title": "EdgeHub API",
-    "description": "Control plane for managing heterogeneous edge node fleets.",
-    "version": "0.1.0"
+    "description": "EdgeHub Control Plane API — secure, asynchronous REST endpoints for edge node provisioning, telemetry ingestion, and fleet management across heterogeneous environments (bare-metal, Docker, Kubernetes).",
+    "version": "0.1.0",
+    "contact": {
+      "name": "EdgeHub",
+      "url": "https://github.com/AndreaProzzo21/edge-hub"
+    }
   },
+  "tags": [
+    {
+      "name": "auth",
+      "description": "Admin authentication. Use your Admin API Key to obtain a session cookie required for all control-plane operations."
+    },
+    {
+      "name": "sites",
+      "description": "Sites are the top-level organizational unit (e.g. a datacenter, a remote location, a logical group). Each site owns its nodes and registration tokens, and can have up to two Webhook integrations (Discord, Slack)."
+    },
+    {
+      "name": "tokens",
+      "description": "Single-use registration tokens scoped to a specific site. The agent presents this token once to register itself; the backend burns it immediately upon use to prevent replay attacks."
+    },
+    {
+      "name": "nodes",
+      "description": "Edge nodes registered under a site. Exposes full CRUD, telemetry history, and JWT renewal operations."
+    },
+    {
+      "name": "agents",
+      "description": "Agent-facing endpoints. These are called by the EdgeHub Go agent, not by the dashboard. Registration is token-authenticated; all subsequent calls use a Bearer JWT."
+    },
+    {
+      "name": "system",
+      "description": "Infrastructure health and readiness probes."
+    }
+  ],
   "paths": {
     "/api/v1/auth/login": {
       "post": {
-        "tags": [
-          "auth"
-        ],
-        "summary": "Administrator Login",
-        "description": "Authenticates an administrator using the master admin key and issues a secure session cookie.",
+        "tags": ["auth"],
+        "summary": "Admin Login",
+        "description": "Authenticates an administrator using an Admin API Key. On success, the server sets a secure session cookie that must be included in all subsequent control-plane requests. The cookie is HttpOnly and scoped to the API origin.",
         "operationId": "login_api_v1_auth_login_post",
         "requestBody": {
+          "required": true,
           "content": {
             "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/LoginRequest"
-              }
+              "schema": { "$ref": "#/components/schemas/LoginRequest" },
+              "example": { "admin_key": "your-admin-api-key" }
             }
-          },
-          "required": true
+          }
         },
         "responses": {
           "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {}
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
+            "description": "Login successful. Session cookie is set in the response headers.",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
+                  "type": "object",
+                  "properties": {
+                    "message": { "type": "string", "example": "Authenticated successfully." }
+                  }
                 }
               }
             }
+          },
+          "401": {
+            "description": "Invalid Admin API Key."
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/HTTPValidationError" } } }
           }
         }
       }
     },
     "/api/v1/auth/logout": {
       "post": {
-        "tags": [
-          "auth"
-        ],
-        "summary": "Administrator Logout",
-        "description": "Invalidates the current session and clears the authentication cookie.",
+        "tags": ["auth"],
+        "summary": "Admin Logout",
+        "description": "Invalidates the current admin session by clearing the session cookie. Subsequent requests using the old cookie will be rejected with 401.",
         "operationId": "logout_api_v1_auth_logout_post",
         "responses": {
           "200": {
-            "description": "Successful Response",
+            "description": "Session invalidated successfully.",
             "content": {
               "application/json": {
-                "schema": {}
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": { "type": "string", "example": "Logged out successfully." }
+                  }
+                }
               }
             }
           }
@@ -68,23 +100,18 @@
     },
     "/api/v1/sites/": {
       "get": {
-        "tags": [
-          "sites"
-        ],
+        "tags": ["sites"],
         "summary": "List All Sites",
-        "description": "Retrieves a list of all configured sites (logical groupings of edge nodes) within the control plane.",
+        "description": "Returns all sites belonging to the authenticated admin. Each site includes its Webhook configuration (URLs are returned if set).",
         "operationId": "list_sites_api_v1_sites__get",
         "responses": {
           "200": {
-            "description": "Successful Response",
+            "description": "Array of all sites.",
             "content": {
               "application/json": {
                 "schema": {
-                  "items": {
-                    "$ref": "#/components/schemas/SiteResponse"
-                  },
                   "type": "array",
-                  "title": "Response List Sites Api V1 Sites  Get"
+                  "items": { "$ref": "#/components/schemas/SiteResponse" }
                 }
               }
             }
@@ -92,497 +119,378 @@
         }
       },
       "post": {
-        "tags": [
-          "sites"
-        ],
-        "summary": "Create a New Site",
-        "description": "Registers a new site to structurally organize and group incoming edge nodes.",
+        "tags": ["sites"],
+        "summary": "Create Site",
+        "description": "Creates a new logical site. Optionally configure Discord and/or Slack Webhook URLs to receive alerting notifications when nodes go offline or recover. Webhook URLs can be added or changed later via `PATCH /api/v1/sites/{site_id}`.",
         "operationId": "create_site_api_v1_sites__post",
         "requestBody": {
+          "required": true,
           "content": {
             "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/SiteCreate"
+              "schema": { "$ref": "#/components/schemas/SiteCreate" },
+              "example": {
+                "name": "Production DC - Milan",
+                "description": "Primary production datacenter in Milan.",
+                "discord_webhook_url": "https://discord.com/api/webhooks/...",
+                "slack_webhook_url": null
               }
             }
-          },
-          "required": true
+          }
         },
         "responses": {
           "201": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/SiteResponse"
-                }
-              }
-            }
+            "description": "Site created successfully.",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/SiteResponse" } } }
           },
           "422": {
             "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/HTTPValidationError" } } }
           }
         }
       }
     },
     "/api/v1/sites/{site_id}": {
-      "patch": {
-        "tags": [
-          "sites"
-        ],
-        "summary": "Update Site Details",
-        "description": "Partially updates an existing site's configuration, such as its name, description, or alert webhook URLs.",
-        "operationId": "patch_site_api_v1_sites__site_id__patch",
-        "parameters": [
-          {
-            "name": "site_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "title": "Site Id"
-            }
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/SitePatch"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/SiteResponse"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      },
       "get": {
-        "tags": [
-          "sites"
-        ],
-        "summary": "Get Site Details",
-        "description": "Retrieves the complete metadata and configuration of a specific site by its unique ID.",
+        "tags": ["sites"],
+        "summary": "Get Site",
+        "description": "Retrieves the full details of a single site by its UUID, including Webhook URLs and creation timestamp.",
         "operationId": "get_site_api_v1_sites__site_id__get",
         "parameters": [
           {
             "name": "site_id",
             "in": "path",
             "required": true,
-            "schema": {
-              "type": "string",
-              "title": "Site Id"
-            }
+            "schema": { "type": "string", "title": "Site ID" },
+            "description": "UUID of the target site."
           }
         ],
         "responses": {
           "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/SiteResponse"
-                }
-              }
-            }
+            "description": "Site details.",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/SiteResponse" } } }
           },
+          "404": { "description": "Site not found." },
           "422": {
             "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/HTTPValidationError" } } }
           }
         }
       },
-      "delete": {
-        "tags": [
-          "sites"
-        ],
-        "summary": "Delete Site",
-        "description": "Permanently removes a site from the system. Warning: this operation may impact the nodes currently associated with it.",
-        "operationId": "delete_site_api_v1_sites__site_id__delete",
+      "patch": {
+        "tags": ["sites"],
+        "summary": "Update Site",
+        "description": "Partially updates a site's mutable fields. All fields are optional — only the fields provided in the request body will be updated. To remove a Webhook URL, pass `null` for that field.",
+        "operationId": "patch_site_api_v1_sites__site_id__patch",
         "parameters": [
           {
             "name": "site_id",
             "in": "path",
             "required": true,
-            "schema": {
-              "type": "string",
-              "title": "Site Id"
-            }
-          }
-        ],
-        "responses": {
-          "204": {
-            "description": "Successful Response"
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/sites/{site_id}/nodes": {
-      "get": {
-        "tags": [
-          "sites"
-        ],
-        "summary": "List Nodes by Site",
-        "description": "Retrieves a list of all edge nodes currently registered under the specified site ID.",
-        "operationId": "list_site_nodes_api_v1_sites__site_id__nodes_get",
-        "parameters": [
-          {
-            "name": "site_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "title": "Site Id"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/NodeResponse"
-                  },
-                  "title": "Response List Site Nodes Api V1 Sites  Site Id  Nodes Get"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/v1/sites/{site_id}/tokens": {
-      "post": {
-        "tags": [
-          "tokens"
-        ],
-        "summary": "Generate Registration Token",
-        "description": "Creates a single-use registration token for a target site. Edge agents use this token to securely authenticate during their initial provisioning.",
-        "operationId": "create_token_api_v1_sites__site_id__tokens_post",
-        "parameters": [
-          {
-            "name": "site_id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "title": "Site Id"
-            }
+            "schema": { "type": "string", "title": "Site ID" },
+            "description": "UUID of the site to update."
           }
         ],
         "requestBody": {
           "required": true,
           "content": {
             "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/TokenCreate"
+              "schema": { "$ref": "#/components/schemas/SitePatch" },
+              "example": {
+                "description": "Updated description.",
+                "slack_webhook_url": "https://hooks.slack.com/services/..."
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Site updated successfully.",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/SiteResponse" } } }
+          },
+          "404": { "description": "Site not found." },
+          "422": {
+            "description": "Validation Error",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/HTTPValidationError" } } }
+          }
+        }
+      },
+      "delete": {
+        "tags": ["sites"],
+        "summary": "Delete Site",
+        "description": "Permanently deletes a site. **Cascade behavior:** all nodes, registration tokens, and heartbeat records belonging to this site are also deleted. This action is irreversible.",
+        "operationId": "delete_site_api_v1_sites__site_id__delete",
+        "parameters": [
+          {
+            "name": "site_id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "title": "Site ID" },
+            "description": "UUID of the site to delete."
+          }
+        ],
+        "responses": {
+          "204": { "description": "Site deleted successfully. No content returned." },
+          "404": { "description": "Site not found." },
+          "422": {
+            "description": "Validation Error",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/HTTPValidationError" } } }
+          }
+        }
+      }
+    },
+    "/api/v1/sites/{site_id}/nodes": {
+      "get": {
+        "tags": ["sites"],
+        "summary": "List Nodes in Site",
+        "description": "Returns all nodes registered under a specific site, including their latest telemetry snapshot (CPU, RAM, disk, uptime), current status, and offline counter. Equivalent to `GET /api/v1/nodes/` filtered by site.",
+        "operationId": "list_site_nodes_api_v1_sites__site_id__nodes_get",
+        "parameters": [
+          {
+            "name": "site_id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "title": "Site ID" },
+            "description": "UUID of the parent site."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Array of nodes belonging to the site.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": { "$ref": "#/components/schemas/NodeResponse" }
+                }
+              }
+            }
+          },
+          "404": { "description": "Site not found." },
+          "422": {
+            "description": "Validation Error",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/HTTPValidationError" } } }
+          }
+        }
+      }
+    },
+    "/api/v1/sites/{site_id}/tokens": {
+      "post": {
+        "tags": ["tokens"],
+        "summary": "Create Registration Token",
+        "description": "Generates a new single-use registration token scoped to this site. The raw token value is returned **only once** in the response — it is not stored in plaintext and cannot be retrieved again. Copy it immediately and use it to deploy the EdgeHub agent.\n\nTokens are valid for a configurable duration (`expires_in_hours`, default 24h, max 8760h). Once used by an agent, the token is permanently burned and cannot be reused.",
+        "operationId": "create_token_api_v1_sites__site_id__tokens_post",
+        "parameters": [
+          {
+            "name": "site_id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "title": "Site ID" },
+            "description": "UUID of the site this token grants registration access to."
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/TokenCreate" },
+              "example": {
+                "label": "prod-milan-node-01",
+                "expires_in_hours": 48
               }
             }
           }
         },
         "responses": {
           "201": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/TokenResponse"
-                }
-              }
-            }
+            "description": "Token created. The `raw_token` field contains the plaintext value — save it now, it will not be shown again. The `commands` field contains pre-built copy-paste deployment commands for all agent modes.",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/TokenResponse" } } }
           },
+          "404": { "description": "Site not found." },
           "422": {
             "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/HTTPValidationError" } } }
           }
         }
       },
       "get": {
-        "tags": [
-          "tokens"
-        ],
-        "summary": "List Pending Tokens",
-        "description": "Retrieves all currently active and unused registration tokens generated for a specific site.",
+        "tags": ["tokens"],
+        "summary": "List Registration Tokens",
+        "description": "Returns all registration tokens for a site. For security, the `raw_token` plaintext is **not** included in list responses — only metadata (ID, label, expiry, validity status) is returned.",
         "operationId": "list_tokens_api_v1_sites__site_id__tokens_get",
         "parameters": [
           {
             "name": "site_id",
             "in": "path",
             "required": true,
-            "schema": {
-              "type": "string",
-              "title": "Site Id"
-            }
+            "schema": { "type": "string", "title": "Site ID" },
+            "description": "UUID of the parent site."
           }
         ],
         "responses": {
           "200": {
-            "description": "Successful Response",
+            "description": "Array of token metadata items.",
             "content": {
               "application/json": {
                 "schema": {
                   "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/TokenListItem"
-                  },
-                  "title": "Response List Tokens Api V1 Sites  Site Id  Tokens Get"
+                  "items": { "$ref": "#/components/schemas/TokenListItem" }
                 }
               }
             }
           },
+          "404": { "description": "Site not found." },
           "422": {
             "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/HTTPValidationError" } } }
           }
         }
       }
     },
     "/api/v1/sites/{site_id}/tokens/{token_id}": {
       "delete": {
-        "tags": [
-          "tokens"
-        ],
+        "tags": ["tokens"],
         "summary": "Revoke Registration Token",
-        "description": "Manually invalidates and deletes a pending registration token to prevent unauthorized agent provisioning.",
+        "description": "Permanently deletes a registration token, preventing it from being used for future agent registrations. If the token was already consumed by an agent, this operation only removes the token record — the registered node is unaffected.",
         "operationId": "delete_token_api_v1_sites__site_id__tokens__token_id__delete",
         "parameters": [
           {
             "name": "site_id",
             "in": "path",
             "required": true,
-            "schema": {
-              "type": "string",
-              "title": "Site Id"
-            }
+            "schema": { "type": "string", "title": "Site ID" },
+            "description": "UUID of the parent site."
           },
           {
             "name": "token_id",
             "in": "path",
             "required": true,
-            "schema": {
-              "type": "string",
-              "title": "Token Id"
-            }
+            "schema": { "type": "string", "title": "Token ID" },
+            "description": "UUID of the token to revoke."
           }
         ],
         "responses": {
-          "204": {
-            "description": "Successful Response"
-          },
+          "204": { "description": "Token revoked. No content returned." },
+          "404": { "description": "Token or site not found." },
           "422": {
             "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/HTTPValidationError" } } }
           }
         }
       }
     },
     "/api/v1/agents/register": {
       "post": {
-        "tags": [
-          "agents"
-        ],
-        "summary": "Agent Registration Endpoint",
-        "description": "Endpoint for edge agents to perform their initial provisioning. Consumes a valid single-use registration token and returns a permanent JWT for continuous telemetry streaming.",
+        "tags": ["agents"],
+        "summary": "Register Agent",
+        "description": "**Called by the EdgeHub agent, not the dashboard.**\n\nRegisters a new edge node using a single-use provisioning token. The flow is:\n1. Agent presents `registration_token` along with its hardware metadata.\n2. Backend validates the token, **immediately burns it** (single-use), and creates a new node record.\n3. Backend returns the `node_id` and a long-lived `agent_token` (JWT).\n4. The agent stores this JWT in `edgehub-state.json` on disk and uses it for all future heartbeats.\n\nSubsequent agent restarts skip this step entirely — the agent reads the JWT from the state file and proceeds directly to the heartbeat loop.",
         "operationId": "register_agent_api_v1_agents_register_post",
         "requestBody": {
+          "required": true,
           "content": {
             "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/AgentRegisterRequest"
+              "schema": { "$ref": "#/components/schemas/AgentRegisterRequest" },
+              "example": {
+                "registration_token": "ehub_reg_xxxxxxxxxxxxxxxx",
+                "hostname": "prod-node-01.milan.example.com",
+                "description": "Primary production server — Rack A3",
+                "agent_type": "linux",
+                "agent_version": "1.2.0",
+                "os": "Ubuntu 24.04 LTS",
+                "arch": "amd64"
               }
             }
-          },
-          "required": true
+          }
         },
         "responses": {
           "201": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/AgentRegisterResponse"
-                }
-              }
-            }
+            "description": "Node registered successfully. The `agent_token` is the JWT the agent must use for all subsequent Bearer-authenticated requests. Store it securely — it will not be re-issued without an explicit JWT renewal.",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/AgentRegisterResponse" } } }
           },
+          "401": { "description": "Invalid, expired, or already-consumed registration token." },
           "422": {
             "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/HTTPValidationError" } } }
           }
         }
       }
     },
     "/api/v1/agents/heartbeat": {
       "post": {
-        "tags": [
-          "agents"
-        ],
-        "summary": "Agent Telemetry Ingestion",
-        "description": "Primary endpoint for edge agents to stream hardware utilization metrics, Docker/K8s states, and update their online presence. Strictly requires a valid JWT Bearer token.",
+        "tags": ["agents"],
+        "summary": "Send Heartbeat",
+        "description": "**Called by the EdgeHub agent on every telemetry cycle.**\n\nThe agent sends a full snapshot of current hardware metrics. The backend:\n- Updates the node's `last_seen` timestamp and resets the `offline_cycles` counter.\n- Persists the telemetry snapshot to the heartbeat history.\n- Returns any pending `command` for the agent to execute (e.g. `update_jwt` for JWT rotation).\n\n**Offline detection:** if the backend stops receiving heartbeats, it increments `offline_cycles` on each check interval. After 3 consecutive missed cycles, the node is marked offline and Webhook alerts are dispatched.\n\n**Revocation:** if this node has been deleted from the dashboard, the backend returns `401 Unauthorized`. The agent treats this as a permanent termination signal — it deletes its local state file and halts.",
         "operationId": "heartbeat_api_v1_agents_heartbeat_post",
+        "security": [{ "HTTPBearer": [] }],
         "requestBody": {
+          "required": true,
           "content": {
             "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/HeartbeatRequest"
+              "schema": { "$ref": "#/components/schemas/HeartbeatRequest" },
+              "example": {
+                "cpu_usage": 34.7,
+                "memory_usage": 61.2,
+                "disk_usage": 42.0,
+                "uptime_seconds": 864000,
+                "ip_address": "192.168.1.101",
+                "extra_data": {
+                  "containers": [
+                    { "name": "nginx", "status": "running", "cpu": 1.2, "mem": 45.6 },
+                    { "name": "redis", "status": "running", "cpu": 0.3, "mem": 12.1 }
+                  ]
+                }
               }
             }
-          },
-          "required": true
+          }
         },
         "responses": {
           "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HeartbeatResponse"
-                }
-              }
-            }
+            "description": "Heartbeat accepted. The `command` field is non-null when the backend has a pending instruction for the agent (e.g. JWT renewal). The agent must execute the command and may acknowledge it on the next cycle.",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/HeartbeatResponse" } } }
+          },
+          "401": {
+            "description": "JWT invalid or node has been revoked. The agent must self-terminate and delete its local state file."
           },
           "422": {
             "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/HTTPValidationError" } } }
           }
-        },
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ]
+        }
       }
     },
     "/api/v1/agents/me": {
       "get": {
-        "tags": [
-          "agents"
-        ],
-        "summary": "Retrieve Agent Identity",
-        "description": "Decodes the provided JWT and returns the identity and status of the currently authenticated agent.",
+        "tags": ["agents"],
+        "summary": "Get Current Agent Node",
+        "description": "**Called by the EdgeHub agent** to retrieve its own node record from the control plane. Useful for agents to verify their registration status, check for configuration changes, or inspect their own metadata after startup.",
         "operationId": "get_me_api_v1_agents_me_get",
+        "security": [{ "HTTPBearer": [] }],
         "responses": {
           "200": {
-            "description": "Successful Response",
+            "description": "The node record associated with the authenticated JWT.",
             "content": {
               "application/json": {
-                "schema": {}
+                "schema": { "$ref": "#/components/schemas/NodeResponse" }
               }
             }
-          }
-        },
-        "security": [
-          {
-            "HTTPBearer": []
-          }
-        ]
+          },
+          "401": { "description": "JWT invalid or node has been revoked." }
+        }
       }
     },
     "/api/v1/nodes/": {
       "get": {
-        "tags": [
-          "nodes"
-        ],
+        "tags": ["nodes"],
         "summary": "List All Nodes",
-        "description": "Retrieves a comprehensive list of all edge nodes registered across all sites in the entire fleet.",
+        "description": "Returns every node across all sites. Each node includes a real-time snapshot of its latest telemetry (CPU, RAM, disk, uptime), current `status` (`online` / `failing` / `offline`), the `offline_cycles` counter, and any `pending_command` queued for the agent.",
         "operationId": "list_all_nodes_api_v1_nodes__get",
         "responses": {
           "200": {
-            "description": "Successful Response",
+            "description": "Flat array of all registered nodes.",
             "content": {
               "application/json": {
                 "schema": {
-                  "items": {
-                    "$ref": "#/components/schemas/NodeResponse"
-                  },
                   "type": "array",
-                  "title": "Response List All Nodes Api V1 Nodes  Get"
+                  "items": { "$ref": "#/components/schemas/NodeResponse" }
                 }
               }
             }
@@ -592,203 +500,187 @@
     },
     "/api/v1/nodes/{node_id}": {
       "get": {
-        "tags": [
-          "nodes"
-        ],
-        "summary": "Get Node Details",
-        "description": "Retrieves detailed information, hardware metadata, and current status for a specific edge node.",
+        "tags": ["nodes"],
+        "summary": "Get Node",
+        "description": "Retrieves the full details of a single node by its UUID. Includes all mutable and immutable fields: hardware metadata registered at provisioning time, latest telemetry snapshot, status, JWT expiry, and any pending command.",
         "operationId": "get_node_api_v1_nodes__node_id__get",
         "parameters": [
           {
             "name": "node_id",
             "in": "path",
             "required": true,
-            "schema": {
-              "type": "string",
-              "title": "Node Id"
-            }
+            "schema": { "type": "string", "title": "Node ID" },
+            "description": "UUID of the target node."
           }
         ],
         "responses": {
           "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/NodeResponse"
-                }
-              }
-            }
+            "description": "Full node details.",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/NodeResponse" } } }
           },
+          "404": { "description": "Node not found." },
           "422": {
             "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/HTTPValidationError" } } }
           }
         }
       },
       "patch": {
-        "tags": [
-          "nodes"
-        ],
-        "summary": "Update Node Metadata",
-        "description": "Allows administrative updates to a node's metadata, such as applying custom descriptions or tags.",
+        "tags": ["nodes"],
+        "summary": "Update Node",
+        "description": "Partially updates the mutable fields of a node. Currently only `description` is updatable via this endpoint — hardware metadata (`hostname`, `os`, `arch`, `agent_type`) is set at registration time and is immutable.",
         "operationId": "patch_node_api_v1_nodes__node_id__patch",
         "parameters": [
           {
             "name": "node_id",
             "in": "path",
             "required": true,
-            "schema": {
-              "type": "string",
-              "title": "Node Id"
-            }
+            "schema": { "type": "string", "title": "Node ID" },
+            "description": "UUID of the node to update."
           }
         ],
         "requestBody": {
           "required": true,
           "content": {
             "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/NodePatch"
-              }
+              "schema": { "$ref": "#/components/schemas/NodePatch" },
+              "example": { "description": "Primary edge node — updated rack location B2." }
             }
           }
         },
         "responses": {
           "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/NodeResponse"
-                }
-              }
-            }
+            "description": "Node updated successfully.",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/NodeResponse" } } }
           },
+          "404": { "description": "Node not found." },
           "422": {
             "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/HTTPValidationError" } } }
           }
         }
       },
       "delete": {
-        "tags": [
-          "nodes"
-        ],
-        "summary": "Revoke and Delete Node",
-        "description": "Permanently deletes a node and cascades the deletion to all its historical heartbeat records. If the node is currently running, its JWT becomes invalid, forcing the remote agent to self-terminate on the next cycle.",
+        "tags": ["nodes"],
+        "summary": "Delete Node",
+        "description": "Permanently deletes a node and **immediately invalidates its JWT**. On the next heartbeat attempt, the agent will receive `401 Unauthorized` and will self-terminate, deleting its local state file.\n\n**Cascade behavior:** all heartbeat records associated with this node are also deleted.",
         "operationId": "remove_node_api_v1_nodes__node_id__delete",
         "parameters": [
           {
             "name": "node_id",
             "in": "path",
             "required": true,
-            "schema": {
-              "type": "string",
-              "title": "Node Id"
-            }
+            "schema": { "type": "string", "title": "Node ID" },
+            "description": "UUID of the node to delete."
           }
         ],
         "responses": {
-          "204": {
-            "description": "Successful Response"
-          },
+          "204": { "description": "Node deleted successfully. No content returned." },
+          "404": { "description": "Node not found." },
           "422": {
             "description": "Validation Error",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/HTTPValidationError" } } }
+          }
+        }
+      }
+    },
+    "/api/v1/nodes/{node_id}/renew-jwt": {
+      "post": {
+        "tags": ["nodes"],
+        "summary": "Renew Node JWT",
+        "description": "Queues a JWT rotation command for the specified node. On the next heartbeat, the backend delivers an `update_jwt` command in the response, containing the new token. The agent replaces its stored JWT and begins using the new one immediately.\n\n**Anti-spam protection:** if a renewal command is already pending (not yet picked up by the agent), subsequent calls to this endpoint are rejected until the pending command is consumed. This prevents token queue flooding.",
+        "operationId": "renew_node_jwt_api_v1_nodes__node_id__renew_jwt_post",
+        "parameters": [
+          {
+            "name": "node_id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string", "title": "Node ID" },
+            "description": "UUID of the node whose JWT should be rotated."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "JWT renewal command queued successfully. The new token will be delivered to the agent on its next heartbeat.",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
+                  "type": "object",
+                  "properties": {
+                    "message": { "type": "string", "example": "JWT renewal queued. The agent will receive the new token on its next heartbeat." }
+                  }
                 }
               }
             }
+          },
+          "409": { "description": "A renewal command is already pending for this node. Wait for the agent to consume it before requesting another rotation." },
+          "404": { "description": "Node not found." },
+          "422": {
+            "description": "Validation Error",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/HTTPValidationError" } } }
           }
         }
       }
     },
     "/api/v1/nodes/{node_id}/heartbeats": {
       "get": {
-        "tags": [
-          "nodes"
-        ],
-        "summary": "Get Node Telemetry History",
-        "description": "Retrieves the last N historical telemetry records (heartbeats) for a specific node, ordered from the most recent to the oldest.",
+        "tags": ["nodes"],
+        "summary": "Get Node Heartbeat History",
+        "description": "Returns the most recent N heartbeat records for a node, sorted from newest to oldest. Each record includes the full telemetry snapshot at that point in time, including any `extra_data` payload (Docker container states, Kubernetes pod health, etc.).\n\nUse the `limit` query parameter to control how many records are returned (default: 100, no hard max enforced — use reasonable values for performance).",
         "operationId": "get_node_heartbeats_api_v1_nodes__node_id__heartbeats_get",
         "parameters": [
           {
             "name": "node_id",
             "in": "path",
             "required": true,
-            "schema": {
-              "type": "string",
-              "title": "Node Id"
-            }
+            "schema": { "type": "string", "title": "Node ID" },
+            "description": "UUID of the node."
           },
           {
             "name": "limit",
             "in": "query",
             "required": false,
-            "schema": {
-              "type": "integer",
-              "default": 100,
-              "title": "Limit"
-            }
+            "schema": { "type": "integer", "default": 100, "minimum": 1, "title": "Limit" },
+            "description": "Maximum number of heartbeat records to return, starting from the most recent."
           }
         ],
         "responses": {
           "200": {
-            "description": "Successful Response",
+            "description": "Array of heartbeat records, newest first.",
             "content": {
               "application/json": {
                 "schema": {
                   "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/HeartbeatRecord"
-                  },
-                  "title": "Response Get Node Heartbeats Api V1 Nodes  Node Id  Heartbeats Get"
+                  "items": { "$ref": "#/components/schemas/HeartbeatRecord" }
                 }
               }
             }
           },
+          "404": { "description": "Node not found." },
           "422": {
             "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/HTTPValidationError" } } }
           }
         }
       }
     },
     "/health": {
       "get": {
-        "tags": [
-          "system"
-        ],
-        "summary": "System Health Check",
-        "description": "Returns the operational status and current version of the EdgeHub control plane.",
+        "tags": ["system"],
+        "summary": "Health Check",
+        "description": "Returns the operational status of the EdgeHub API. Use this endpoint for liveness probes in container orchestrators (Docker Compose `healthcheck`, Kubernetes liveness/readiness probes, or uptime monitors).",
         "operationId": "health_health_get",
         "responses": {
           "200": {
-            "description": "Successful Response",
+            "description": "API is operational.",
             "content": {
               "application/json": {
-                "schema": {}
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": { "type": "string", "example": "ok" }
+                  }
+                }
               }
             }
           }
@@ -798,739 +690,373 @@
   },
   "components": {
     "schemas": {
+      "LoginRequest": {
+        "title": "LoginRequest",
+        "description": "Admin authentication credentials.",
+        "type": "object",
+        "required": ["admin_key"],
+        "properties": {
+          "admin_key": {
+            "type": "string",
+            "title": "Admin API Key",
+            "description": "The secret Admin API Key configured in the EdgeHub backend environment variables."
+          }
+        }
+      },
+      "SiteCreate": {
+        "title": "SiteCreate",
+        "description": "Payload to create a new site. Only `name` is required; Webhook URLs can be added at creation time or later via PATCH.",
+        "type": "object",
+        "required": ["name"],
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128,
+            "title": "Name",
+            "description": "Human-readable name for the site (e.g. 'Production DC - Milan', 'Home Lab')."
+          },
+          "description": {
+            "anyOf": [{ "type": "string", "maxLength": 512 }, { "type": "null" }],
+            "title": "Description",
+            "description": "Optional free-text description."
+          },
+          "discord_webhook_url": {
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
+            "title": "Discord Webhook URL",
+            "description": "Discord Incoming Webhook URL. If set, the system will POST offline/recovery alert embeds to this endpoint."
+          },
+          "slack_webhook_url": {
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
+            "title": "Slack Webhook URL",
+            "description": "Slack Incoming Webhook URL. If set, the system will POST offline/recovery alert messages to this endpoint."
+          }
+        }
+      },
+      "SitePatch": {
+        "title": "SitePatch",
+        "description": "Partial update schema for an existing site. All fields are optional. Pass `null` to a Webhook URL field to remove it.",
+        "type": "object",
+        "properties": {
+          "name": {
+            "anyOf": [{ "type": "string", "minLength": 1, "maxLength": 128 }, { "type": "null" }],
+            "title": "Name",
+            "description": "New name for the site."
+          },
+          "description": {
+            "anyOf": [{ "type": "string", "maxLength": 512 }, { "type": "null" }],
+            "title": "Description",
+            "description": "New description. Pass `null` to clear it."
+          },
+          "discord_webhook_url": {
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
+            "title": "Discord Webhook URL",
+            "description": "Updated Discord Webhook URL. Pass `null` to disable Discord alerts for this site."
+          },
+          "slack_webhook_url": {
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
+            "title": "Slack Webhook URL",
+            "description": "Updated Slack Webhook URL. Pass `null` to disable Slack alerts for this site."
+          }
+        }
+      },
+      "SiteResponse": {
+        "title": "SiteResponse",
+        "description": "Full representation of a site.",
+        "type": "object",
+        "required": ["id", "name", "description", "created_at", "discord_webhook_url", "slack_webhook_url"],
+        "properties": {
+          "id": { "type": "string", "title": "Site ID", "description": "UUID assigned by the backend on creation." },
+          "name": { "type": "string", "title": "Name" },
+          "description": { "anyOf": [{ "type": "string" }, { "type": "null" }], "title": "Description" },
+          "created_at": { "type": "string", "format": "date-time", "title": "Created At", "description": "ISO 8601 timestamp of site creation." },
+          "discord_webhook_url": { "anyOf": [{ "type": "string" }, { "type": "null" }], "title": "Discord Webhook URL" },
+          "slack_webhook_url": { "anyOf": [{ "type": "string" }, { "type": "null" }], "title": "Slack Webhook URL" }
+        }
+      },
+      "TokenCreate": {
+        "title": "TokenCreate",
+        "description": "Configuration for a new registration token.",
+        "type": "object",
+        "properties": {
+          "label": {
+            "anyOf": [{ "type": "string", "maxLength": 128 }, { "type": "null" }],
+            "title": "Label",
+            "description": "Optional human-readable label to identify which node this token was intended for (e.g. 'prod-milan-node-01')."
+          },
+          "expires_in_hours": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 8760,
+            "default": 24,
+            "title": "Expires In Hours",
+            "description": "Token validity window in hours, starting from creation. Default is 24h; maximum is 8760h (1 year). After expiry, the token cannot be used even if not yet consumed."
+          }
+        }
+      },
+      "TokenResponse": {
+        "title": "TokenResponse",
+        "description": "Full token details returned immediately after creation. The `raw_token` is shown **only once** — it is not stored in plaintext and cannot be retrieved again.",
+        "type": "object",
+        "required": ["id", "site_id", "raw_token", "expires_at", "label", "commands"],
+        "properties": {
+          "id": { "type": "string", "title": "Token ID", "description": "UUID of the token record." },
+          "site_id": { "type": "string", "title": "Site ID", "description": "UUID of the site this token is scoped to." },
+          "raw_token": { "type": "string", "title": "Raw Token", "description": "The plaintext registration token value. **Copy this now — it will not be shown again.**" },
+          "expires_at": { "type": "string", "format": "date-time", "title": "Expires At", "description": "ISO 8601 timestamp after which the token is invalid." },
+          "label": { "anyOf": [{ "type": "string" }, { "type": "null" }], "title": "Label", "description": "Human-readable label for this token." },
+          "commands": {
+            "type": "object",
+            "additionalProperties": { "type": "string" },
+            "title": "Deployment Commands",
+            "description": "Pre-built, copy-paste deployment commands keyed by agent mode (e.g. `linux`, `docker`, `kubernetes`). These are generated by the backend and include the token embedded in the correct environment variable."
+          }
+        }
+      },
+      "TokenListItem": {
+        "title": "TokenListItem",
+        "description": "Token metadata returned in list responses. The raw token value is not included for security.",
+        "type": "object",
+        "required": ["id", "label", "expires_at", "is_valid"],
+        "properties": {
+          "id": { "type": "string", "title": "Token ID" },
+          "label": { "anyOf": [{ "type": "string" }, { "type": "null" }], "title": "Label" },
+          "expires_at": { "type": "string", "format": "date-time", "title": "Expires At" },
+          "is_valid": {
+            "type": "boolean",
+            "title": "Is Valid",
+            "description": "True if the token has not been used and has not expired. False if it was consumed by an agent or the expiry timestamp has passed."
+          }
+        }
+      },
       "AgentRegisterRequest": {
+        "title": "AgentRegisterRequest",
+        "description": "Registration payload sent by the agent on first startup. The `registration_token` is burned server-side upon successful validation.",
+        "type": "object",
+        "required": ["registration_token", "hostname", "agent_type", "agent_version"],
         "properties": {
           "registration_token": {
             "type": "string",
             "minLength": 1,
-            "title": "Registration Token"
+            "title": "Registration Token",
+            "description": "The single-use provisioning token generated via `POST /api/v1/sites/{site_id}/tokens`."
           },
           "hostname": {
             "type": "string",
-            "maxLength": 256,
             "minLength": 1,
-            "title": "Hostname"
+            "maxLength": 256,
+            "title": "Hostname",
+            "description": "The node's hostname as reported by the OS."
           },
           "description": {
-            "anyOf": [
-              {
-                "type": "string",
-                "maxLength": 512
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Description"
+            "anyOf": [{ "type": "string", "maxLength": 512 }, { "type": "null" }],
+            "title": "Description",
+            "description": "Optional human-readable description of the node (e.g. rack location, role)."
           },
           "agent_type": {
             "type": "string",
             "pattern": "^(linux|docker|kubernetes)$",
-            "title": "Agent Type"
+            "title": "Agent Type",
+            "description": "Deployment mode of the agent. Must be one of: `linux` (native systemd daemon), `docker` (containerized), `kubernetes` (cluster deployment)."
           },
           "agent_version": {
             "type": "string",
             "maxLength": 64,
-            "title": "Agent Version"
+            "title": "Agent Version",
+            "description": "Semantic version of the EdgeHub Go agent binary (e.g. `1.2.0`)."
           },
           "os": {
-            "anyOf": [
-              {
-                "type": "string",
-                "maxLength": 128
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Os"
+            "anyOf": [{ "type": "string", "maxLength": 128 }, { "type": "null" }],
+            "title": "Operating System",
+            "description": "OS name and version string as reported by the agent (e.g. `Ubuntu 24.04 LTS`, `Alpine Linux 3.19`)."
           },
           "arch": {
-            "anyOf": [
-              {
-                "type": "string",
-                "maxLength": 32
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Arch"
+            "anyOf": [{ "type": "string", "maxLength": 32 }, { "type": "null" }],
+            "title": "Architecture",
+            "description": "CPU architecture of the node (e.g. `amd64`, `arm64`)."
           }
-        },
-        "type": "object",
-        "required": [
-          "registration_token",
-          "hostname",
-          "agent_type",
-          "agent_version"
-        ],
-        "title": "AgentRegisterRequest"
+        }
       },
       "AgentRegisterResponse": {
-        "properties": {
-          "node_id": {
-            "type": "string",
-            "title": "Node Id"
-          },
-          "agent_token": {
-            "type": "string",
-            "title": "Agent Token"
-          }
-        },
+        "title": "AgentRegisterResponse",
+        "description": "Response returned after successful agent registration. The agent must persist both values in its local state file (`edgehub-state.json`).",
         "type": "object",
-        "required": [
-          "node_id",
-          "agent_token"
-        ],
-        "title": "AgentRegisterResponse"
-      },
-      "HTTPValidationError": {
+        "required": ["node_id", "agent_token"],
         "properties": {
-          "detail": {
-            "items": {
-              "$ref": "#/components/schemas/ValidationError"
-            },
-            "type": "array",
-            "title": "Detail"
-          }
-        },
-        "type": "object",
-        "title": "HTTPValidationError"
-      },
-      "HeartbeatRecord": {
-        "properties": {
-          "id": {
-            "type": "integer",
-            "title": "Id"
-          },
-          "node_id": {
-            "type": "string",
-            "title": "Node Id"
-          },
-          "cpu_usage": {
-            "type": "number",
-            "title": "Cpu Usage"
-          },
-          "memory_usage": {
-            "type": "number",
-            "title": "Memory Usage"
-          },
-          "disk_usage": {
-            "type": "number",
-            "title": "Disk Usage"
-          },
-          "uptime_seconds": {
-            "type": "number",
-            "title": "Uptime Seconds"
-          },
-          "ip_address": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Ip Address"
-          },
-          "extra_data": {
-            "anyOf": [
-              {
-                "type": "object"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Extra Data"
-          },
-          "timestamp": {
-            "type": "string",
-            "format": "date-time",
-            "title": "Timestamp"
-          }
-        },
-        "type": "object",
-        "required": [
-          "id",
-          "node_id",
-          "cpu_usage",
-          "memory_usage",
-          "disk_usage",
-          "uptime_seconds",
-          "ip_address",
-          "extra_data",
-          "timestamp"
-        ],
-        "title": "HeartbeatRecord",
-        "description": "Schema utilized for historical telemetry records returned by the GET /nodes/{id}/heartbeats endpoint."
+          "node_id": { "type": "string", "title": "Node ID", "description": "UUID of the newly created node record. Used to identify this node in the dashboard and API." },
+          "agent_token": { "type": "string", "title": "Agent JWT", "description": "Long-lived Bearer JWT to be used in the `Authorization` header for all subsequent agent-facing requests (heartbeat, `GET /agents/me`)." }
+        }
       },
       "HeartbeatRequest": {
+        "title": "HeartbeatRequest",
+        "description": "Telemetry snapshot sent by the agent on every heartbeat cycle. Core metrics are validated as percentages (0–100) or non-negative numbers. The `extra_data` field accepts any JSON object for environment-specific payloads.",
+        "type": "object",
+        "required": ["cpu_usage", "memory_usage", "disk_usage", "uptime_seconds"],
         "properties": {
           "cpu_usage": {
             "type": "number",
-            "maximum": 100,
-            "minimum": 0,
-            "title": "Cpu Usage"
+            "minimum": 0.0,
+            "maximum": 100.0,
+            "title": "CPU Usage (%)",
+            "description": "Current CPU utilization as a percentage (0.0–100.0)."
           },
           "memory_usage": {
             "type": "number",
-            "maximum": 100,
-            "minimum": 0,
-            "title": "Memory Usage"
+            "minimum": 0.0,
+            "maximum": 100.0,
+            "title": "Memory Usage (%)",
+            "description": "Current RAM utilization as a percentage (0.0–100.0)."
           },
           "disk_usage": {
             "type": "number",
-            "maximum": 100,
-            "minimum": 0,
-            "title": "Disk Usage"
+            "minimum": 0.0,
+            "maximum": 100.0,
+            "title": "Disk Usage (%)",
+            "description": "Primary disk utilization as a percentage (0.0–100.0)."
           },
           "uptime_seconds": {
             "type": "number",
-            "minimum": 0,
-            "title": "Uptime Seconds"
+            "minimum": 0.0,
+            "title": "Uptime (seconds)",
+            "description": "Node uptime in seconds since last boot."
           },
           "ip_address": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Ip Address"
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
+            "title": "IP Address",
+            "description": "Primary IP address of the node as seen from its own network interface."
           },
           "extra_data": {
-            "anyOf": [
-              {
-                "type": "object"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Extra Data"
+            "anyOf": [{ "type": "object" }, { "type": "null" }],
+            "title": "Extra Data",
+            "description": "Arbitrary JSON payload for environment-specific telemetry. For Docker agents: container list with status/resource usage. For Kubernetes agents: pod and cluster health. Structure is agent-defined and stored in the hybrid JSON column — no schema migration required for new fields."
           }
-        },
-        "type": "object",
-        "required": [
-          "cpu_usage",
-          "memory_usage",
-          "disk_usage",
-          "uptime_seconds"
-        ],
-        "title": "HeartbeatRequest"
+        }
       },
       "HeartbeatResponse": {
-        "properties": {
-          "status": {
-            "type": "string",
-            "title": "Status",
-            "default": "ok"
-          },
-          "node_id": {
-            "type": "string",
-            "title": "Node Id"
-          },
-          "timestamp": {
-            "type": "string",
-            "format": "date-time",
-            "title": "Timestamp"
-          }
-        },
+        "title": "HeartbeatResponse",
+        "description": "Backend acknowledgment of a heartbeat. The agent must inspect the `command` field on every response.",
         "type": "object",
-        "required": [
-          "node_id",
-          "timestamp"
-        ],
-        "title": "HeartbeatResponse"
+        "required": ["node_id", "timestamp"],
+        "properties": {
+          "status": { "type": "string", "default": "ok", "title": "Status", "description": "Always `ok` when the heartbeat is accepted." },
+          "node_id": { "type": "string", "title": "Node ID", "description": "UUID of the node that sent the heartbeat." },
+          "timestamp": { "type": "string", "format": "date-time", "title": "Server Timestamp", "description": "ISO 8601 timestamp recorded by the server when the heartbeat was processed." },
+          "command": {
+            "anyOf": [{ "$ref": "#/components/schemas/AgentCommand" }, { "type": "null" }],
+            "description": "Optional command for the agent to execute. Currently used for `update_jwt` (JWT rotation). Null when no command is pending."
+          }
+        }
       },
-      "LoginRequest": {
+      "AgentCommand": {
+        "title": "AgentCommand",
+        "description": "An instruction delivered to the agent via the heartbeat response channel. The agent is responsible for executing the action and applying the payload.",
+        "type": "object",
+        "required": ["action", "payload"],
         "properties": {
-          "admin_key": {
+          "action": {
             "type": "string",
-            "title": "Admin Key"
+            "title": "Action",
+            "description": "The command type. Currently supported: `update_jwt` — instructs the agent to replace its stored JWT with the value in `payload.new_token`."
+          },
+          "payload": {
+            "type": "object",
+            "title": "Payload",
+            "description": "Command-specific data. For `update_jwt`: `{ \"new_token\": \"<jwt>\" }`."
           }
-        },
-        "type": "object",
-        "required": [
-          "admin_key"
-        ],
-        "title": "LoginRequest"
-      },
-      "NodePatch": {
-        "properties": {
-          "description": {
-            "anyOf": [
-              {
-                "type": "string",
-                "maxLength": 512
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Description"
-          }
-        },
-        "type": "object",
-        "title": "NodePatch"
+        }
       },
       "NodeResponse": {
+        "title": "NodeResponse",
+        "description": "Full representation of a registered edge node, including its latest telemetry snapshot and operational state.",
+        "type": "object",
+        "required": ["id", "site_id", "hostname", "description", "agent_type", "agent_version", "os", "arch", "cpu_usage", "mem_usage", "uptime_seconds", "status", "last_seen", "created_at", "offline_cycles", "offline_alert_sent"],
         "properties": {
-          "id": {
-            "type": "string",
-            "title": "Id"
-          },
-          "site_id": {
-            "type": "string",
-            "title": "Site Id"
-          },
-          "hostname": {
-            "type": "string",
-            "title": "Hostname"
-          },
+          "id": { "type": "string", "title": "Node ID", "description": "UUID of the node." },
+          "site_id": { "type": "string", "title": "Site ID", "description": "UUID of the parent site." },
+          "hostname": { "type": "string", "title": "Hostname", "description": "Hostname as reported at registration time." },
+          "description": { "anyOf": [{ "type": "string" }, { "type": "null" }], "title": "Description" },
+          "agent_type": { "type": "string", "title": "Agent Type", "description": "One of: `linux`, `docker`, `kubernetes`." },
+          "agent_version": { "type": "string", "title": "Agent Version", "description": "Version of the agent binary that registered this node." },
+          "os": { "anyOf": [{ "type": "string" }, { "type": "null" }], "title": "Operating System" },
+          "arch": { "anyOf": [{ "type": "string" }, { "type": "null" }], "title": "Architecture" },
+          "cpu_usage": { "anyOf": [{ "type": "number" }, { "type": "null" }], "title": "CPU Usage (%)", "description": "CPU utilization from the last heartbeat." },
+          "mem_usage": { "anyOf": [{ "type": "number" }, { "type": "null" }], "title": "Memory Usage (%)", "description": "RAM utilization from the last heartbeat." },
+          "uptime_seconds": { "anyOf": [{ "type": "number" }, { "type": "null" }], "title": "Uptime (seconds)" },
+          "status": { "type": "string", "title": "Status", "description": "Current node status: `online` (receiving heartbeats), `failing` (1–2 missed cycles), `offline` (3+ missed cycles, alert sent)." },
+          "last_seen": { "anyOf": [{ "type": "string", "format": "date-time" }, { "type": "null" }], "title": "Last Seen", "description": "ISO 8601 timestamp of the most recently accepted heartbeat." },
+          "created_at": { "type": "string", "format": "date-time", "title": "Created At", "description": "ISO 8601 timestamp of node registration." },
+          "offline_cycles": { "type": "integer", "title": "Offline Cycles", "description": "Number of consecutive missed heartbeat cycles. Resets to 0 on recovery. Alert is dispatched when this reaches 3." },
+          "offline_alert_sent": { "type": "boolean", "title": "Offline Alert Sent", "description": "True if the offline Webhook notification has been dispatched for the current outage period. Resets to false on recovery." },
+          "pending_command": { "anyOf": [{ "type": "object" }, { "type": "null" }], "title": "Pending Command", "description": "Command queued for the agent, to be delivered on its next heartbeat. Null when no command is pending." },
+          "jwt_expires_at": { "anyOf": [{ "type": "string", "format": "date-time" }, { "type": "null" }], "title": "JWT Expires At", "description": "ISO 8601 expiry timestamp of the node's current JWT. Use the `renew-jwt` endpoint to rotate before expiry." }
+        }
+      },
+      "NodePatch": {
+        "title": "NodePatch",
+        "description": "Partial update schema for a node. Only user-defined metadata fields are mutable post-registration.",
+        "type": "object",
+        "properties": {
           "description": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Description"
-          },
-          "agent_type": {
-            "type": "string",
-            "title": "Agent Type"
-          },
-          "agent_version": {
-            "type": "string",
-            "title": "Agent Version"
-          },
-          "os": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Os"
-          },
-          "arch": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Arch"
-          },
-          "cpu_usage": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Cpu Usage"
-          },
-          "mem_usage": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Mem Usage"
-          },
-          "uptime_seconds": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Uptime Seconds"
-          },
-          "status": {
-            "type": "string",
-            "title": "Status"
-          },
-          "last_seen": {
-            "anyOf": [
-              {
-                "type": "string",
-                "format": "date-time"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Last Seen"
-          },
-          "created_at": {
-            "type": "string",
-            "format": "date-time",
-            "title": "Created At"
-          },
-          "offline_cycles": {
-            "type": "integer",
-            "title": "Offline Cycles"
-          },
-          "offline_alert_sent": {
-            "type": "boolean",
-            "title": "Offline Alert Sent"
+            "anyOf": [{ "type": "string", "maxLength": 512 }, { "type": "null" }],
+            "title": "Description",
+            "description": "Updated description. Pass `null` to clear."
           }
-        },
-        "type": "object",
-        "required": [
-          "id",
-          "site_id",
-          "hostname",
-          "description",
-          "agent_type",
-          "agent_version",
-          "os",
-          "arch",
-          "cpu_usage",
-          "mem_usage",
-          "uptime_seconds",
-          "status",
-          "last_seen",
-          "created_at",
-          "offline_cycles",
-          "offline_alert_sent"
-        ],
-        "title": "NodeResponse"
+        }
       },
-      "SiteCreate": {
-        "properties": {
-          "name": {
-            "type": "string",
-            "maxLength": 128,
-            "minLength": 1,
-            "title": "Name"
-          },
-          "description": {
-            "anyOf": [
-              {
-                "type": "string",
-                "maxLength": 512
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Description"
-          },
-          "discord_webhook_url": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Discord Webhook Url",
-            "description": "Discord webhook URL for dispatching offline node alerts."
-          },
-          "slack_webhook_url": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Slack Webhook Url",
-            "description": "Slack webhook URL for dispatching offline node alerts."
-          }
-        },
+      "HeartbeatRecord": {
+        "title": "HeartbeatRecord",
+        "description": "A single persisted telemetry snapshot from the node's heartbeat history. Returned by `GET /api/v1/nodes/{node_id}/heartbeats`.",
         "type": "object",
-        "required": [
-          "name"
-        ],
-        "title": "SiteCreate"
+        "required": ["id", "node_id", "cpu_usage", "memory_usage", "disk_usage", "uptime_seconds", "ip_address", "extra_data", "timestamp"],
+        "properties": {
+          "id": { "type": "integer", "title": "Record ID", "description": "Auto-incremented integer primary key of the heartbeat record." },
+          "node_id": { "type": "string", "title": "Node ID", "description": "UUID of the node this record belongs to." },
+          "cpu_usage": { "type": "number", "title": "CPU Usage (%)" },
+          "memory_usage": { "type": "number", "title": "Memory Usage (%)" },
+          "disk_usage": { "type": "number", "title": "Disk Usage (%)" },
+          "uptime_seconds": { "type": "number", "title": "Uptime (seconds)" },
+          "ip_address": { "anyOf": [{ "type": "string" }, { "type": "null" }], "title": "IP Address" },
+          "extra_data": {
+            "anyOf": [{ "type": "object" }, { "type": "null" }],
+            "title": "Extra Data",
+            "description": "Environment-specific telemetry payload stored as JSON (Docker container list, Kubernetes pod states, etc.)."
+          },
+          "timestamp": { "type": "string", "format": "date-time", "title": "Timestamp", "description": "ISO 8601 server-side timestamp when this heartbeat was recorded." }
+        }
       },
-      "SitePatch": {
-        "properties": {
-          "name": {
-            "anyOf": [
-              {
-                "type": "string",
-                "maxLength": 128,
-                "minLength": 1
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Name"
-          },
-          "description": {
-            "anyOf": [
-              {
-                "type": "string",
-                "maxLength": 512
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Description"
-          },
-          "discord_webhook_url": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Discord Webhook Url"
-          },
-          "slack_webhook_url": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Slack Webhook Url"
-          }
-        },
+      "HTTPValidationError": {
+        "title": "HTTPValidationError",
         "type": "object",
-        "title": "SitePatch",
-        "description": "Schema defining the updatable fields for an existing site configuration."
-      },
-      "SiteResponse": {
         "properties": {
-          "id": {
-            "type": "string",
-            "title": "Id"
-          },
-          "name": {
-            "type": "string",
-            "title": "Name"
-          },
-          "description": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Description"
-          },
-          "created_at": {
-            "type": "string",
-            "format": "date-time",
-            "title": "Created At"
-          },
-          "discord_webhook_url": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Discord Webhook Url"
-          },
-          "slack_webhook_url": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Slack Webhook Url"
+          "detail": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/ValidationError" },
+            "title": "Validation Error Details"
           }
-        },
-        "type": "object",
-        "required": [
-          "id",
-          "name",
-          "description",
-          "created_at",
-          "discord_webhook_url",
-          "slack_webhook_url"
-        ],
-        "title": "SiteResponse"
-      },
-      "TokenCreate": {
-        "properties": {
-          "label": {
-            "anyOf": [
-              {
-                "type": "string",
-                "maxLength": 128
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Label"
-          },
-          "expires_in_hours": {
-            "type": "integer",
-            "maximum": 8760,
-            "minimum": 1,
-            "title": "Expires In Hours",
-            "default": 24
-          }
-        },
-        "type": "object",
-        "title": "TokenCreate"
-      },
-      "TokenListItem": {
-        "properties": {
-          "id": {
-            "type": "string",
-            "title": "Id"
-          },
-          "label": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Label"
-          },
-          "expires_at": {
-            "type": "string",
-            "format": "date-time",
-            "title": "Expires At"
-          },
-          "is_valid": {
-            "type": "boolean",
-            "title": "Is Valid"
-          }
-        },
-        "type": "object",
-        "required": [
-          "id",
-          "label",
-          "expires_at",
-          "is_valid"
-        ],
-        "title": "TokenListItem"
-      },
-      "TokenResponse": {
-        "properties": {
-          "id": {
-            "type": "string",
-            "title": "Id"
-          },
-          "site_id": {
-            "type": "string",
-            "title": "Site Id"
-          },
-          "raw_token": {
-            "type": "string",
-            "title": "Raw Token"
-          },
-          "expires_at": {
-            "type": "string",
-            "format": "date-time",
-            "title": "Expires At"
-          },
-          "label": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Label"
-          },
-          "commands": {
-            "additionalProperties": {
-              "type": "string"
-            },
-            "type": "object",
-            "title": "Commands"
-          }
-        },
-        "type": "object",
-        "required": [
-          "id",
-          "site_id",
-          "raw_token",
-          "expires_at",
-          "label",
-          "commands"
-        ],
-        "title": "TokenResponse"
+        }
       },
       "ValidationError": {
+        "title": "ValidationError",
+        "type": "object",
+        "required": ["loc", "msg", "type"],
         "properties": {
           "loc": {
-            "items": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "integer"
-                }
-              ]
-            },
             "type": "array",
-            "title": "Location"
+            "items": { "anyOf": [{ "type": "string" }, { "type": "integer" }] },
+            "title": "Location",
+            "description": "Path to the invalid field (e.g. `[\"body\", \"hostname\"]`)."
           },
-          "msg": {
-            "type": "string",
-            "title": "Message"
-          },
-          "type": {
-            "type": "string",
-            "title": "Error Type"
-          }
-        },
-        "type": "object",
-        "required": [
-          "loc",
-          "msg",
-          "type"
-        ],
-        "title": "ValidationError"
+          "msg": { "type": "string", "title": "Message", "description": "Human-readable validation error message." },
+          "type": { "type": "string", "title": "Error Type", "description": "Pydantic error type code." }
+        }
       }
     },
     "securitySchemes": {
       "HTTPBearer": {
         "type": "http",
-        "scheme": "bearer"
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "description": "Agent JWT issued at registration via `POST /api/v1/agents/register`. Include in the `Authorization: Bearer <token>` header for all agent-facing endpoints."
       }
     }
   }
