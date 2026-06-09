@@ -923,8 +923,10 @@
                             <i class="fas fa-microchip"></i>
                             <h4>Data Plane — Agent</h4>
                         </div>
-                        <p>A zero-dependency, multi-architecture <strong>Go binary</strong> (AMD64 &amp; ARM64). It auto-detects its environment and operates on a push-based telemetry loop with a minimal resource footprint.</p>
-                        <p><strong>Fail-Fast Security:</strong> The agent respects immediate revocation. Upon a <code>401</code> response it permanently self-terminates — deleting its local state file — to prevent zombie processes and bandwidth waste.</p>
+                        <!-- FIX 1: "zero-dependency" → "self-contained binary" -->
+                        <p>A self-contained, multi-architecture <strong>Go binary</strong> (AMD64 &amp; ARM64). Statically compiled with all dependencies bundled — no runtime installation required on the target node. It auto-detects its environment and operates on a push-based telemetry loop with a minimal resource footprint.</p>
+                        <!-- FIX 2: Fail-Fast accuracy — no mention of state file deletion, correct systemd behaviour -->
+                        <p><strong>Fail-Fast Security:</strong> The agent respects immediate revocation. Upon a <code>401</code> response, the agent exits immediately via <code>os.Exit</code>, preventing further heartbeat attempts and bandwidth waste. When deployed as a systemd service, the unit file is configured with <code>RestartPreventExitCodes</code> to ensure the process is not restarted after an intentional termination.</p>
                     </div>
                 </div>
 
@@ -953,13 +955,14 @@
                         <div class="seq-line"><span class="actor">Agent</span> <span class="arrow">─────────────▶</span> <span class="method">POST /agents/heartbeat</span> <span class="note">// Bearer JWT</span></div>
                         <div class="seq-line"><span class="actor">API  </span> <span class="arrow">◀─────────────</span> <span class="status">200 OK</span> <span class="note">// Update last_seen, append telemetry</span></div>
                     </div>
+                    <!-- FIX 3: Sequence diagram revocation — removed "delete state" -->
                     <div class="seq-phase revoke">
                         <div class="seq-label">4 · Security &amp; Revocation</div>
                         <div class="seq-line"><span class="actor">Admin</span> <span class="arrow">─────────────▶</span> <span class="method">DELETE /nodes/:id</span> <span class="note">// Revoke / delete node</span></div>
                         <div class="seq-line"><span class="actor">API  </span> <span class="arrow">──────────────</span> <span class="note">Mark node deleted, invalidate JWT</span></div>
                         <div class="seq-line"><span class="actor">Agent</span> <span class="arrow">─────────────▶</span> <span class="method">POST /agents/heartbeat</span></div>
                         <div class="seq-line"><span class="actor">API  </span> <span class="arrow">◀─────────────</span> <span class="status">401 Unauthorized</span></div>
-                        <div class="seq-line"><span class="actor">Agent</span> <span class="arrow">──────────────</span> <span class="note">log.Fatalf → delete state → self-terminate</span></div>
+                        <div class="seq-line"><span class="actor">Agent</span> <span class="arrow">──────────────</span> <span class="note">os.Exit → halts immediately, state file retained</span></div>
                     </div>
                 </div>
             </section>
@@ -1059,7 +1062,7 @@
                         <div class="security-icon red"><i class="fas fa-ban"></i></div>
                         <div class="security-text">
                             <h4>Instant Revocation</h4>
-                            <p>Deleting a node via the dashboard immediately invalidates its JWT on the backend. The agent self-terminates on its next heartbeat cycle.</p>
+                            <p>Deleting a node via the dashboard immediately invalidates its JWT on the backend. The agent exits on its next heartbeat cycle and does not attempt to re-register.</p>
                         </div>
                     </div>
                     <div class="security-item">
@@ -1084,7 +1087,7 @@
                     <div>
                         The dashboard auto-fills the correct <strong>API endpoint URL</strong> and <strong>registration token</strong> into each deployment command. You never need to manually construct these.
                         <br><br>
-                        The only case where you need to copy a new token and re-inject it as an environment variable — then restart the process, container, or deploy — is when a <strong>Node JWT has expired</strong>. The agent will have received a <code>401</code> response and shut down gracefully. By default, Node JWTs are valid for <strong>10 years</strong>, but this is configurable from the dashboard.
+                        The only case where you need to copy a new token and re-inject it as an environment variable — then restart the process, container, or deploy — is when a <strong>Node JWT has expired</strong>. The agent will have received a <code>401</code> response and shut down. By default, Node JWTs are valid for <strong>10 years</strong>, but this is configurable from the dashboard.
                     </div>
                 </div>
 
@@ -1157,11 +1160,12 @@
                             <p>Every N seconds the agent collects base metrics (CPU, RAM, disk, uptime) plus environment-specific data (Docker container states or Kubernetes pod health) and posts them to <code>POST /api/v1/agents/heartbeat</code> with a Bearer JWT.</p>
                         </div>
                     </div>
+                    <!-- FIX 4: Revocation step — accurate description, no mention of state file deletion -->
                     <div class="step">
                         <div class="step-num">5</div>
                         <div class="step-body">
-                            <h4>Revocation &amp; Self-Cleanup</h4>
-                            <p>If the backend returns <code>401 Unauthorized</code>, the agent calls <code>log.Fatalf</code>, deletes <code>edgehub-state.json</code>, and halts — preventing retry loops and leaving no stale credentials on disk.</p>
+                            <h4>Revocation &amp; Shutdown</h4>
+                            <p>If the backend returns <code>401 Unauthorized</code>, the agent exits immediately via <code>os.Exit</code>. The <code>edgehub-state.json</code> file is intentionally retained on disk — this prevents the agent from attempting to re-register with an already-consumed registration token on its next start. Re-provisioning requires an admin to generate a new token, update the environment variable on the node, delete the state file manually, and restart the service.</p>
                         </div>
                     </div>
                 </div>
@@ -1213,6 +1217,47 @@
                             <h4>Heartbeat Resumes — Recovery Notification</h4>
                             <p>A successful heartbeat from a previously-offline node immediately resets all failure counters and dispatches a <strong>recovery notification</strong> through the same webhook channels.</p>
                         </div>
+                    </div>
+                </div>
+            </section>
+
+            <hr class="section-divider">
+
+            <!-- TELEMETRY RETENTION — NEW SECTION -->
+            <section class="section-anchor" id="data-retention">
+                <h2 class="section-title"><i class="fas fa-trash-clock"></i> Telemetry Retention &amp; Cleanup</h2>
+                <p class="section-subtitle">EdgeHub automatically purges historical heartbeat records to keep the database lean and prevent unbounded growth over time.</p>
+
+                <div class="cards-grid">
+                    <div class="info-card">
+                        <div class="info-card-header">
+                            <i class="fas fa-calendar-check"></i>
+                            <h4>Automatic Daily Cleanup</h4>
+                        </div>
+                        <p>A background async task runs every 24 hours and permanently deletes all heartbeat records older than the configured retention window. The task operates entirely within the database layer — no external scheduler or cron job is required.</p>
+                        <p>On each run the backend logs how many records were removed, making it easy to track growth trends over time.</p>
+                    </div>
+                    <div class="info-card">
+                        <div class="info-card-header">
+                            <i class="fas fa-sliders"></i>
+                            <h4>Configurable Retention Window</h4>
+                        </div>
+                        <p>The default retention period is <strong>7 days</strong>. This is sufficient for trend analysis and incident review in most edge deployments, while keeping storage requirements predictable.</p>
+                        <p>The retention window is controlled by the <code>retention_days</code> parameter passed to the cleanup task at startup. Adjust it to suit your storage capacity and observability requirements.</p>
+                    </div>
+                </div>
+
+                <div class="callout callout-info">
+                    <i class="fas fa-circle-info"></i>
+                    <div>
+                        Only raw heartbeat records are subject to automatic deletion. <strong>Node entities, site configurations, registration tokens, and alert history are never touched by the cleanup task</strong> — they persist until explicitly removed via the dashboard or API.
+                    </div>
+                </div>
+
+                <div class="callout callout-warn">
+                    <i class="fas fa-triangle-exclamation"></i>
+                    <div>
+                        If you need more than 7 days of telemetry history — for example, for capacity planning or long-term trend analysis — increase <code>retention_days</code> before deploying. Records deleted by the cleanup task are <strong>not recoverable</strong>.
                     </div>
                 </div>
             </section>
