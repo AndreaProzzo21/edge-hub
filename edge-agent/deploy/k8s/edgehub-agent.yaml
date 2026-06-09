@@ -55,7 +55,6 @@ spec:
 
 ---
 # 5. Deployment
-# Il vero e proprio carico di lavoro
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -74,11 +73,9 @@ spec:
         app: edgehub-agent
     spec:
       serviceAccountName: edgehub-agent-sa
-      
-      # --- MODIFICHE FONDAMENTALI PER VEDERE IL NODO HOST ---
+
       hostNetwork: true  # Permette di leggere la rete e l'IP reali del nodo
       hostPID: true      # Permette di vedere tutti i processi del nodo
-      # ------------------------------------------------------
       
       containers:
         - name: agent
