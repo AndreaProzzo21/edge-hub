@@ -95,6 +95,10 @@ _info "This sets the CORS policy. Examples: https://hub.mydomain.com or http://1
 _prompt "Dashboard URL (CORS Origin)" "*"
 CORS_ORIGINS="$REPLY"
 
+_info "On which port should the Dashboard be exposed on this machine?"
+_prompt "Dashboard Port" "80"
+EDGEHUB_PORT="$REPLY"
+
 _step "Database Configuration"
 _info "Settings for the internal PostgreSQL database."
 _prompt "Database Name" "edge-hub"
@@ -127,6 +131,11 @@ if [[ -z "$JWT_SECRET_KEY" ]]; then
   JWT_SECRET_KEY=$(openssl rand -hex 32)
   _ok "JWT Secret auto-generated."
 fi
+echo ""
+_info "How long should Agent tokens remain valid (in minutes)?"
+_info "We recommend keeping the default (10 years) to avoid agents silently disconnecting."
+_prompt "JWT Expiration (minutes)" "5256000"
+JWT_EXPIRE_MINUTES="$REPLY"
 
 _step "Monitoring & Heartbeat (Optional)"
 _info "How many seconds before a node is considered offline?"
@@ -144,6 +153,7 @@ cat > "${ENV_FILE}" <<EOF
 
 # --- Network ---
 CORS_ORIGINS=${CORS_ORIGINS}
+EDGEHUB_PORT=${EDGEHUB_PORT}
 
 # --- Database ---
 DATABASE_URL=${DATABASE_URL}
@@ -155,6 +165,7 @@ POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
 ADMIN_API_KEY=${ADMIN_API_KEY}
 JWT_SECRET_KEY=${JWT_SECRET_KEY}
 JWT_ALGORITHM=HS256
+JWT_EXPIRE_MINUTES=${JWT_EXPIRE_MINUTES}
 
 # --- Monitoring ---
 NODE_OFFLINE_THRESHOLD_SECONDS=${OFFLINE_THRESHOLD}
@@ -175,7 +186,7 @@ echo -e "\n ${BGREEN}╔══════════════════�
 echo -e " ${BGREEN}║${C0}  ${BOLD}EdgeHub Server is now up and running!${C0}               ${BGREEN}║${C0}"
 echo -e " ${BGREEN}╚══════════════════════════════════════════════════════╝${C0}\n"
 echo -e "  ${BOLD}Web Dashboard :${C0} ${CORS_ORIGINS}"
-echo -e "  ${DIM}(Ensure your DNS/Tunnel routes traffic to this server's port 80)${C0}\n"
+echo -e "  ${DIM}(Ensure your DNS/Tunnel routes traffic to this server's port ${EDGEHUB_PORT})${C0}\n"
 echo -e "  ${BOLD}Admin API Key :${C0} ${BCYAN}${ADMIN_API_KEY}${C0} ${DIM}(Save this!)${C0}\n"
 echo -e "  ${DIM}Install path  :${C0} ${INSTALL_DIR}"
 echo -e "  ${DIM}Check status  :${C0} cd ${INSTALL_DIR} && ${DOCKER_CMD} ps"
