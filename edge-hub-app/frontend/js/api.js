@@ -63,6 +63,7 @@ const Nodes = {
   patch:      (id, body)    => patch('/nodes/' + id, body),
   delete:     (id)          => del('/nodes/' + id),
   heartbeats: (id, limit)   => get(`/nodes/${id}/heartbeats?limit=${limit || 100}`),
+  renewJwt:   (id)          => post(`/nodes/${id}/renew-jwt`),
 };
 
 // ── Format helpers ────────────────────────────────────────

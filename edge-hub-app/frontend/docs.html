@@ -10,7 +10,7 @@
   .doc-text { font-size: 14px; color: var(--gray-600); line-height: 1.6; margin-bottom: 12px; }
   .doc-code { background: var(--gray-50); padding: 12px; border-radius: var(--radius-md); border: 1px solid var(--gray-200); font-family: var(--mono); font-size: 13px; color: var(--gray-800); overflow-x: auto; margin-bottom: 12px; }
   .doc-list { list-style: none; padding: 0; margin: 0 0 16px 0; }
-  .doc-list li { font-size: 14px; color: var(--gray-700); margin-bottom: 8px; padding-left: 20px; position: relative; }
+  .doc-list li { font-size: 14px; color: var(--gray-700); margin-bottom: 8px; padding-left: 20px; position: relative; line-height: 1.5; }
   .doc-list li::before { content: "•"; color: var(--accent); position: absolute; left: 0; font-weight: bold; }
   
   /* Banner Header Background */
@@ -38,8 +38,8 @@
       <div class="card hero-banner">
         <div class="card-body" style="padding: 30px;">
           <h2 style="margin: 0 0 10px 0; font-size: 24px; font-weight: 600; color: #ffffff;">System Architecture</h2>
-          <p style="margin: 0; font-size: 15px; color: #e2e8f0; max-width: 650px; line-height: 1.5;">
-            EdgeHub is an asynchronous telemetry platform designed for distributed infrastructure monitoring. It utilizes a central FastAPI backend to aggregate metrics transmitted by ultra-lightweight, natively compiled Golang agents deployed at the edge.
+          <p style="margin: 0; font-size: 15px; color: #e2e8f0; max-width: 700px; line-height: 1.5;">
+            EdgeHub is an asynchronous telemetry and Command & Control (C2) platform designed for distributed infrastructure. It utilizes a central FastAPI backend to manage and monitor ultra-lightweight, natively compiled Golang agents deployed at the edge.
           </p>
         </div>
       </div>
@@ -51,35 +51,28 @@
           </div>
           <div class="card-body">
             <p class="doc-text">
-              The Edge Agent is a standalone self-contained Go binary, supporting both AMD64 and ARM64 architectures. It operates with a minimal resource footprint.
+              The Edge Agent is a standalone self-contained binary with a minimal footprint. Its identity is strictly managed by the backend.
             </p>
-            <p class="doc-text" style="font-weight: 500; margin-top: 16px;">Registration Flow:</p>
             <ul class="doc-list">
-              <li>Upon initial execution, the agent utilizes a <strong>single-use provisioning token</strong> to authenticate against the backend API.</li>
-              <li>Once validated, the backend <strong>immediately destroys the token</strong> to prevent reuse, registers the hardware metadata, and issues a persistent JSON Web Token (JWT).</li>
-              <li>This JWT is stored locally within the node's filesystem (<code>edgehub-state.json</code>).</li>
-              <li>During subsequent service restarts, the agent bypasses the registration phase entirely, utilizing the stored JWT to immediately resume telemetry transmission.</li>
-            </ul>
-            <p class="doc-text" style="font-weight: 500; margin-top: 16px; color: var(--danger);">Security & Revocation:</p>
-            <ul class="doc-list">
-              <li>If a node is compromised, administrators can delete it via the EdgeHub dashboard. This instantly invalidates the JWT on the backend.</li>
-              <li><strong>Self-Cleanup Protocol:</strong> Upon receiving a <code>401 Unauthorized</code> response, the revoked agent gracefully halts, preventing zombie processes and bandwidth waste.</li>
+              <li><strong>Provisioning:</strong> Upon initial execution, the agent utilizes a single-use token to authenticate. Once validated, the backend immediately destroys the token to prevent replay attacks.</li>
+              <li><strong>Persistence:</strong> The agent receives a persistent JSON Web Token (JWT) saved locally in <code>edgehub-state.json</code>. Subsequent restarts bypass registration and resume telemetry seamlessly.</li>
+              <li><strong>Self-Cleanup:</strong> If an administrator deletes a node from the dashboard, the token is revoked. Upon receiving a <code>401 Unauthorized</code> response, the agent gracefully halts.</li>
             </ul>
           </div>
         </div>
 
         <div class="card doc-section">
           <div class="card-header">
-            <div class="card-title">2. Alerting & State Management</div>
+            <div class="card-title">2. Command & Control (C2)</div>
           </div>
           <div class="card-body">
             <p class="doc-text">
-              Third-party webhooks (e.g., Discord, Slack) can be configured at the Site level to receive real-time infrastructure alerts. To mitigate false positives caused by transient network instability, EdgeHub implements a buffered state evaluation mechanism for node availability.
+              EdgeHub employs a unidirectional polling architecture, ensuring agents remain secure behind strict NATs or firewalls without requiring open inbound ports.
             </p>
             <ul class="doc-list">
-              <li><strong>Threshold Evaluation:</strong> When a node fails to transmit a scheduled heartbeat, the backend increments an internal <code>offline_cycles</code> counter. The node enters a failing state, but no external notifications are triggered.</li>
-              <li><strong>Alert Dispatch:</strong> If a node accumulates three consecutive missed cycles, the system transitions its state to offline and dispatches the configured Webhook payloads.</li>
-              <li><strong>Automated Recovery:</strong> Upon the successful reception of a new heartbeat from a previously offline node, the backend immediately resets the failure counters and dispatches a recovery notification via the established Webhook channels.</li>
+              <li><strong>Polling Mechanism:</strong> Agents retrieve pending commands (e.g., token rotations) seamlessly during their scheduled heartbeat cycles.</li>
+              <li><strong>Zero-Downtime Rotation:</strong> JWT renewals utilize a Rolling JTI (JWT ID) strategy. The existing token remains fully valid until the agent explicitly acknowledges and uses the newly issued token.</li>
+              <li><strong>Manual Recovery:</strong> If an agent's token fully expires and disconnects, the C2 channel is severed. Administrators must delete the local state file and re-provision the node manually.</li>
             </ul>
           </div>
         </div>
@@ -88,38 +81,54 @@
       <div class="grid-2">
         <div class="card doc-section">
           <div class="card-header">
-            <div class="card-title">3. Deployment Topologies</div>
+            <div class="card-title">3. Alerting & State Management</div>
           </div>
           <div class="card-body">
-            <p class="doc-text">The agent dynamically adapts its data collection methodology based on the <code>EDGEHUB_MODE</code> environment variable:</p>
+            <p class="doc-text">
+              Third-party webhooks (e.g., Discord, Slack) can be configured at the Site level to receive real-time infrastructure alerts. EdgeHub implements a buffered evaluation mechanism to prevent false positives.
+            </p>
             <ul class="doc-list">
-              <li><strong>Linux Native (Systemd):</strong> Executed as a root-level background daemon. Designed for bare-metal servers, virtual machines, and IoT devices (e.g., Raspberry Pi).</li>
-              <li><strong>Docker Compose:</strong> Operates within an isolated container environment. It requires read-only mounts of host system volumes to accurately calculate underlying hardware utilization.</li>
-              <li><strong>Kubernetes:</strong> It is recommended to deploy the Kubernetes agent as a standard Deployment on a single node to interface with the cluster API. For the remaining nodes (workers/masters), deploy the Linux native agent to handle basic telemetry and heartbeats independently.</li>
+              <li><strong>Threshold Evaluation:</strong> Missed heartbeats increment an internal offline counter without triggering immediate alerts.</li>
+              <li><strong>Alert Dispatch:</strong> Accumulating three consecutive missed cycles forces the node into an offline state, dispatching the configured Webhook payloads.</li>
+              <li><strong>Automated Recovery:</strong> A successful heartbeat from a previously offline node immediately resets failure counters and dispatches a recovery notification.</li>
             </ul>
           </div>
         </div>
 
-        <div class="card doc-section" style="border: 1px solid var(--gray-200);">
-          <div class="card-header" style="background: var(--gray-50); border-bottom: 1px solid var(--gray-200);">
-            <div>
-              <div class="card-title">Developer API</div>
-              <div class="card-subtitle">Official Documentation</div>
-            </div>
+        <div class="card doc-section">
+          <div class="card-header">
+            <div class="card-title">4. Deployment Topologies</div>
           </div>
-          <div class="card-body" style="display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 40px 20px;">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="width: 42px; height: 42px; color: var(--gray-400); margin-bottom: 16px;">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M14.25 9.75L16.5 12l-2.25 2.25m-4.5 0L7.5 12l2.25-2.25M6 20.25h12A2.25 2.25 0 0020.25 18V6A2.25 2.25 0 0018 3.75H6A2.25 2.25 0 003.75 6v12A2.25 2.25 0 006 20.25z" />
-            </svg>
-            <h3 style="font-size: 15px; font-weight: 600; margin: 0 0 8px 0; color: var(--gray-900);">REST API Documentation</h3>
-            <p class="doc-text" style="margin-bottom: 20px; font-size: 13px;">
-              Comprehensive documentation and implementation guides for the EdgeHub REST API.
-            </p>
-            <a href="https://andreaprozzo21.github.io/edge-hub/" target="_blank" class="btn btn-secondary">
-              View Documentation
-              <svg viewBox="0 0 20 20" fill="currentColor" style="margin-left:6px; width:14px; height:14px;"><path d="M11 3a1 1 0 100 2h2.586l-6.293 6.293a1 1 0 101.414 1.414L15 6.414V9a1 1 0 102 0V4a1 1 0 00-1-1h-5z"/><path d="M5 5a2 2 0 00-2 2v8a2 2 0 002 2h8a2 2 0 002-2v-3a1 1 0 10-2 0v3H5V7h3a1 1 0 000-2H5z"/></svg>
-            </a>
+          <div class="card-body">
+            <p class="doc-text">The agent dynamically adapts its data collection methodology based on the <code>EDGEHUB_MODE</code> environment variable:</p>
+            <ul class="doc-list">
+              <li><strong>Linux Native (Systemd):</strong> Executed as a background daemon. Designed for bare-metal servers, VMs, and IoT devices.</li>
+              <li><strong>Docker Compose:</strong> Operates within an isolated container. Requires read-only mounts of host system volumes to accurately calculate underlying hardware utilization.</li>
+              <li><strong>Kubernetes:</strong> Deployed as a Deployment to interface with the cluster API, while standard Linux native agents can be used to independently monitor individual worker nodes.</li>
+            </ul>
           </div>
+        </div>
+      </div>
+
+      <div class="card doc-section" style="border: 1px solid var(--gray-200); margin-top: 8px;">
+        <div class="card-header" style="background: var(--gray-50); border-bottom: 1px solid var(--gray-200);">
+          <div>
+            <div class="card-title">Developer API</div>
+            <div class="card-subtitle">Official Documentation</div>
+          </div>
+        </div>
+        <div class="card-body" style="display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 40px 20px;">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="width: 42px; height: 42px; color: var(--gray-400); margin-bottom: 16px;">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M14.25 9.75L16.5 12l-2.25 2.25m-4.5 0L7.5 12l2.25-2.25M6 20.25h12A2.25 2.25 0 0020.25 18V6A2.25 2.25 0 0018 3.75H6A2.25 2.25 0 003.75 6v12A2.25 2.25 0 006 20.25z" />
+          </svg>
+          <h3 style="font-size: 15px; font-weight: 600; margin: 0 0 8px 0; color: var(--gray-900);">REST API Documentation</h3>
+          <p class="doc-text" style="margin-bottom: 20px; font-size: 13px; max-width: 500px;">
+            Dive deeper into the architecture. Access comprehensive documentation, OpenAPI schemas, and implementation guides for the EdgeHub REST API.
+          </p>
+          <a href="https://andreaprozzo21.github.io/edge-hub/" target="_blank" class="btn btn-secondary">
+            View Documentation
+            <svg viewBox="0 0 20 20" fill="currentColor" style="margin-left:6px; width:14px; height:14px;"><path d="M11 3a1 1 0 100 2h2.586l-6.293 6.293a1 1 0 101.414 1.414L15 6.414V9a1 1 0 102 0V4a1 1 0 00-1-1h-5z"/><path d="M5 5a2 2 0 00-2 2v8a2 2 0 002 2h8a2 2 0 002-2v-3a1 1 0 10-2 0v3H5V7h3a1 1 0 000-2H5z"/></svg>
+          </a>
         </div>
       </div>
 

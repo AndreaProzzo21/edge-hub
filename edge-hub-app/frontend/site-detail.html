@@ -88,7 +88,7 @@
           <div class="table-wrap">
             <table>
               <thead><tr>
-                <th>Hostname</th><th>Status</th><th>Agent</th><th>CPU</th><th>Mem</th><th>Uptime</th><th>Last Seen</th><th></th>
+                <th>Hostname</th><th>Status</th><th>Agent</th><th>CPU</th><th>Mem</th><th>Uptime</th><th>Last Seen</th><th>Token Expires</th><th></th>
               </tr></thead>
               <tbody id="nodes-tbody">
                 <tr><td colspan="8"><div class="loader-row"><div class="spinner"></div> Loading…</div></td></tr>
@@ -174,6 +174,16 @@
     margin-bottom: 20px;
     line-height: 1.5;
   }
+  .modal-warning-banner {
+    background-color: rgba(245, 158, 11, 0.1);
+    border-left: 4px solid #f59e0b;
+    padding: 12px 16px;
+    border-radius: 0 6px 6px 0;
+    font-size: 0.85rem;
+    color: #78350f;
+    margin-bottom: 12px;
+    line-height: 1.5;
+  }
   .terminal-window {
     background-color: #0f172a;
     border-radius: 8px;
@@ -198,7 +208,6 @@
     </div>
     
     <div class="modal-body">
-      <!-- SELETTORE GLOBALE -->
       <div class="tabs" style="margin-bottom: 20px;">
         <button class="tab active" onclick="switchGlobalTab('linux')">Linux</button>
         <button class="tab" onclick="switchGlobalTab('docker')">Docker</button>
@@ -209,13 +218,23 @@
         <strong>Security Notice:</strong> This is a single-use token. It will be permanently deleted upon registration.
       </div>
       
-      <!-- RINNOVO (CAMBIA IN BASE AL TAB) -->
       <div class="form-group">
-        <label class="form-label">1. Renewing an existing agent?</label>
+        <label class="form-label">1. Manual Recovery (Expired Node)</label>
+        
+        <div class="modal-warning-banner">
+          If an agent's token expired and disconnected, automatic renewal is no longer possible. You must delete its local state file, update the token, and restart it to force a fresh registration.
+        </div>
+
         <div class="modal-info-banner" style="background-color: rgba(59, 130, 246, 0.05); border-left-color: #3b82f6;">
-          <div id="renew-linux" class="renew-text">Delete local state: <code>rm /opt/edgehub/data/edgehub-state.json</code></div>
-          <div id="renew-docker" class="renew-text" style="display:none;">Delete local state: <code>rm /opt/edgehub/data/edgehub-state.json</code></div>
-          <div id="renew-kubernetes" class="renew-text" style="display:none;">Restart agent: <code>kubectl delete pod -l app=edgehub-agent</code></div>
+          <div id="renew-linux" class="renew-text">
+            <strong>Linux:</strong> Delete the state file before restarting: <code>rm /opt/edgehub/data/edgehub-state.json</code>
+          </div>
+          <div id="renew-docker" class="renew-text" style="display:none;">
+            <strong>Docker:</strong> Delete the mapped state file (e.g., in your volume folder): <code>rm /path/to/edgehub-state.json</code>
+          </div>
+          <div id="renew-kubernetes" class="renew-text" style="display:none;">
+            <strong>Kubernetes:</strong> Delete the Secret/ConfigMap storing the state, inject this new token into <code>EDGEHUB_TOKEN</code>, and restart: <code>kubectl rollout restart deploy edgehub-agent</code>
+          </div>
         </div>
         
         <div class="token-box">
@@ -224,7 +243,6 @@
         </div>
       </div>
       
-      <!-- INSTALLAZIONE (CAMBIA IN BASE AL TAB) -->
       <div class="form-group">
         <label class="form-label">2. New Installation Command</label>
         <div class="terminal-window">
@@ -323,14 +341,31 @@ async function loadSite() {
 async function loadNodes() {
   try {
     const nodes = await Sites.nodes(SITE_ID);
-    document.getElementById('nodes-count').textContent = nodes.length + ' node' + (nodes.length!==1?'s':'');
+    document.getElementById('nodes-count').textContent = nodes.length + ' node' + (nodes.length !== 1 ? 's' : '');
     const tbody = document.getElementById('nodes-tbody');
     if (!nodes.length) {
-      tbody.innerHTML = `<tr><td colspan="8">${emptyState('No nodes', 'Register nodes using a token below')}</td></tr>`;
+      // Aggiornato colspan a 9 per coprire tutte le colonne
+      tbody.innerHTML = `<tr><td colspan="9">${emptyState('No nodes', 'Register nodes using a token below')}</td></tr>`;
       return;
     }
     
-    tbody.innerHTML = nodes.map(n => `
+    tbody.innerHTML = nodes.map(n => {
+      // Logica per lo stato del Rinnovo JWT
+      const isRenewing = n.pending_command && n.pending_command.action === 'update_jwt';
+      const renewBtnHtml = isRenewing 
+        ? `<button class="btn btn-ghost btn-sm" style="color:var(--muted)" title="Renewal pending (waiting for heartbeat...)" disabled>
+             <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clip-rule="evenodd"/></svg>
+           </button>`
+        : `<button class="btn btn-ghost btn-sm" style="color:var(--primary)" title="Renew Agent JWT" onclick="renewNodeJwt(event, '${esc(n.id)}', '${esc(n.hostname||n.id)}')">
+             <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clip-rule="evenodd"/></svg>
+           </button>`;
+
+      // Formattazione della data di scadenza (es. "15 Oct 2034")
+      const expiresHtml = n.jwt_expires_at 
+        ? new Date(n.jwt_expires_at).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })
+        : '<span class="muted">—</span>';
+
+      return `
       <tr class="clickable" onclick="showNodeDetail('${n.id}', '${esc(n.hostname||n.id)}')">
         <td class="td-primary">${esc(n.hostname||n.id)}</td>
         <td>${statusBadge(n.status)}</td>
@@ -343,15 +378,42 @@ async function loadNodes() {
         </td>
         <td class="mono muted">${fmtUptime(n.uptime_seconds)}</td>
         <td class="mono muted">${relTime(n.last_seen)}</td>
+        
+        <td class="mono muted" title="Token expiration date">${expiresHtml}</td>
+
         <td onclick="event.stopPropagation()">
-          <button class="btn btn-ghost btn-sm" style="color:var(--danger)" title="Delete node" onclick="deleteNode('${esc(n.id)}','${esc(n.hostname||n.id)}')">
-            <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd"/></svg>
-          </button>
+          <div class="row" style="gap: 5px;">
+            ${renewBtnHtml}
+            <button class="btn btn-ghost btn-sm" style="color:var(--danger)" title="Delete node" onclick="deleteNode('${esc(n.id)}','${esc(n.hostname||n.id)}')">
+              <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd"/></svg>
+            </button>
+          </div>
         </td>
-      </tr>`).join('');
+      </tr>`;
+    }).join('');
   } catch(e) {
-    document.getElementById('nodes-tbody').innerHTML = `<tr><td colspan="8" style="color:var(--danger);padding:14px">${esc(e.message)}</td></tr>`;
+    document.getElementById('nodes-tbody').innerHTML = `<tr><td colspan="9" style="color:var(--danger);padding:14px">${esc(e.message)}</td></tr>`;
   }
+}
+
+// Funzione con confirmAction custom e label corretta
+function renewNodeJwt(event, id, name) {
+  event.stopPropagation(); // Evita di far scattare showNodeDetail cliccando la riga
+  
+  confirmAction(
+    'Renew Agent Token', 
+    `Are you sure you want to renew the token for node "${name}"? The new token will be delivered automatically at the next heartbeat.`, 
+    async () => {
+      try { 
+        await Nodes.renewJwt(id); 
+        toast(`Renewal command queued for ${name}`, 'success'); 
+        loadNodes(); // Ricarica la tabella per mostrare l'icona della clessidra
+      } catch(e) { 
+        toast(e.message, 'error'); 
+      }
+    },
+    'Renew Token'
+  );
 }
 
 async function showNodeDetail(nodeId, hostname) {
