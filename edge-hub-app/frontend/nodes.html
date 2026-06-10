@@ -5,6 +5,82 @@
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>EdgeHub — All Nodes</title>
 <link rel="stylesheet" href="css/app.css">
+<style>
+  /* --- COMMAND CENTER LAYOUT --- */
+  .stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 16px;
+    margin-bottom: 24px;
+  }
+  .stat-card {
+    background: var(--white);
+    border: 1px solid var(--gray-200);
+    border-radius: var(--radius-lg);
+    padding: 16px 20px;
+    box-shadow: var(--shadow-sm);
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    border-left: 4px solid var(--gray-300);
+  }
+  .stat-card.online { border-left-color: var(--success); }
+  .stat-card.offline { border-left-color: var(--danger); }
+  
+  .stat-val { font-size: 24px; font-weight: 700; color: var(--gray-900); }
+  .stat-label { font-size: 13px; font-weight: 600; color: var(--gray-500); text-transform: uppercase; letter-spacing: 0.5px; }
+
+  .cmd-filter-bar {
+    display: flex;
+    gap: 12px;
+    background: var(--gray-50);
+    padding: 12px;
+    border-radius: var(--radius-md) var(--radius-md) 0 0;
+    border-bottom: 1px solid var(--gray-200);
+    align-items: center;
+    flex-wrap: wrap;
+  }
+  
+  .cmd-filter-bar .search-wrap { flex: 1; min-width: 200px; margin: 0; }
+  .cmd-filter-bar .search-input { background: var(--white); border-color: var(--gray-300); }
+  .cmd-select {
+    padding: 8px 12px;
+    border: 1px solid var(--gray-300);
+    border-radius: var(--radius-md);
+    background: var(--white);
+    font-size: 13px;
+    color: var(--gray-700);
+    outline: none;
+    cursor: pointer;
+    min-width: 140px;
+  }
+  .cmd-select:focus { border-color: var(--primary); box-shadow: 0 0 0 2px rgba(59,130,246,0.2); }
+
+  .table-compact th, .table-compact td { padding: 10px 16px; font-size: 13px; }
+  .table-compact tbody tr { transition: background 0.1s; }
+  .table-compact tbody tr:hover { background: var(--gray-50); }
+
+  .pagination-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 16px;
+    background: var(--white);
+    border-top: 1px solid var(--gray-200);
+    border-radius: 0 0 var(--radius-md) var(--radius-md);
+  }
+  .page-info { font-size: 13px; color: var(--gray-500); }
+  .page-controls { display: flex; gap: 8px; align-items: center; }
+  .btn-page {
+    background: var(--white); border: 1px solid var(--gray-300); border-radius: var(--radius-sm);
+    padding: 4px 10px; font-size: 13px; color: var(--gray-700); cursor: pointer; transition: all 0.1s;
+  }
+  .btn-page:hover:not(:disabled) { background: var(--gray-100); }
+  .btn-page:disabled { opacity: 0.5; cursor: not-allowed; }
+  .page-current { font-size: 13px; font-weight: 600; color: var(--gray-900); padding: 0 8px; }
+  
+  .truncate-hash { max-width: 90px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: inline-block; vertical-align: bottom; }
+</style>
 </head>
 <body>
 <div class="shell">
@@ -15,38 +91,85 @@
       <div class="topbar-gap"></div>
       <button class="btn btn-secondary btn-sm" onclick="loadNodes()">
         <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clip-rule="evenodd"/></svg>
-        Refresh
+        Refresh Data
       </button>
     </div>
 
     <div class="page-body page-enter">
-      <div class="subbar" style="margin:-24px -26px 24px;padding:10px 26px">
-        <div class="filter-bar">
-          <div class="search-wrap">
-            <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clip-rule="evenodd"/></svg>
-            <input type="text" class="search-input" id="node-search" placeholder="Search nodes..." oninput="filterNodes()">
-          </div>
-          <div class="filter-gap"></div>
-          <span class="filter-count" id="node-count"></span>
+      
+      <!-- STATISTICHE RAPIDE -->
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-label">Total Nodes</div>
+          <div class="stat-val" id="stat-total">-</div>
+        </div>
+        <div class="stat-card online">
+          <div class="stat-label">Online (Healthy)</div>
+          <div class="stat-val" id="stat-online">-</div>
+        </div>
+        <div class="stat-card offline">
+          <div class="stat-label">Offline / Critical</div>
+          <div class="stat-val" id="stat-offline">-</div>
         </div>
       </div>
 
-      <div class="card">
+      <!-- COMAND CENTER: FILTRI E TABELLA PAGINATA -->
+      <div class="card" style="padding:0">
+        
+        <!-- Barra Filtri -->
+        <div class="cmd-filter-bar">
+          <div class="search-wrap">
+            <svg viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clip-rule="evenodd"/></svg>
+            <input type="text" class="search-input" id="node-search" placeholder="Search hostname or desc..." oninput="applyFilters()">
+          </div>
+          
+          <select class="cmd-select" id="filter-site" onchange="applyFilters()">
+            <option value="ALL">All Sites</option>
+            <!-- Popolato dinamicamente -->
+          </select>
+          
+          <select class="cmd-select" id="filter-status" onchange="applyFilters()">
+            <option value="ALL">All Statuses</option>
+            <option value="ONLINE">Online Only</option>
+            <option value="OFFLINE">Offline Only</option>
+          </select>
+        </div>
+
+        <!-- Tabella Densa -->
         <div class="table-wrap">
-          <table>
+          <table class="table-compact">
             <thead><tr>
-              <th>Hostname</th><th>Status</th><th>Site ID</th><th>Description</th><th>Agent</th><th>Last Seen</th><th></th>
+              <th>Hostname</th>
+              <th>Status</th>
+              <th>Site ID</th>
+              <th>Agent</th>
+              <th>CPU</th>
+              <th>MEM</th>
+              <th>Last Seen</th>
+              <th></th>
             </tr></thead>
             <tbody id="nodes-tbody">
-              <tr><td colspan="6"><div class="loader-row"><div class="spinner"></div> Loading…</div></td></tr>
+              <tr><td colspan="8"><div class="loader-row"><div class="spinner"></div> Loading fleet data...</div></td></tr>
             </tbody>
           </table>
         </div>
+
+        <!-- Paginazione -->
+        <div class="pagination-bar">
+          <div class="page-info" id="page-info">Showing 0-0 of 0</div>
+          <div class="page-controls">
+            <button class="btn-page" id="btn-prev" onclick="changePage(-1)">Previous</button>
+            <span class="page-current" id="page-current">Page 1</span>
+            <button class="btn-page" id="btn-next" onclick="changePage(1)">Next</button>
+          </div>
+        </div>
+
       </div>
     </div>
   </div>
 </div>
 
+<!-- Modals (Dettagli, Edit, Confirm invariati) -->
 <div id="modal-node-detail" class="modal-backdrop hidden">
   <div class="modal modal-wide">
     <div class="modal-header">
@@ -64,9 +187,7 @@
 
 <div id="modal-edit-node" class="modal-backdrop hidden">
   <div class="modal modal-sm">
-    <div class="modal-header">
-      <div class="modal-title">Edit Node</div>
-    </div>
+    <div class="modal-header"><div class="modal-title">Edit Node</div></div>
     <div class="modal-body">
       <div class="form-group">
         <label class="form-label">Description</label>
@@ -94,8 +215,12 @@
 <script src="js/api.js"></script>
 <script>
 document.getElementById('sidebar-mount').innerHTML = SIDEBAR_HTML;
+
 let editingNodeId = null;
-let allNodesList = []; // Global per la ricerca
+let allNodesList = []; 
+let filteredNodes = [];
+let currentPage = 1;
+const itemsPerPage = 15;
 
 async function init() {
   if (!(await requireAuth())) return;
@@ -105,47 +230,117 @@ async function init() {
 async function loadNodes() {
   try {
     allNodesList = await Nodes.list();
-    renderNodes(allNodesList);
+    populateSiteDropdown();
+    applyFilters(); // Questo calcola le stats e disegna la prima pagina
   } catch(e) { toast(e.message, 'error'); }
 }
 
-function renderNodes(list) {
-    document.getElementById('node-count').textContent = list.length + ' node' + (list.length!==1?'s':'');
+// 1. Popola dinamicamente il menu a tendina con i Site ID univoci trovati
+function populateSiteDropdown() {
+    const select = document.getElementById('filter-site');
+    const uniqueSites = [...new Set(allNodesList.map(n => n.site_id).filter(Boolean))];
+    
+    // Mantiene la prima option "All Sites" e aggiunge le altre
+    select.innerHTML = '<option value="ALL">All Sites</option>' + 
+      uniqueSites.map(s => `<option value="${s}">Site: ${s}</option>`).join('');
+}
+
+// 2. Motore di filtraggio e statistiche
+function applyFilters() {
+  const q = document.getElementById('node-search').value.toLowerCase();
+  const siteFilt = document.getElementById('filter-site').value;
+  const statFilt = document.getElementById('filter-status').value;
+
+  let onlineCount = 0;
+  let offlineCount = 0;
+
+  filteredNodes = allNodesList.filter(n => {
+    // Calcolo stato reale
+    const s = String(n.status).toLowerCase();
+    const isOnline = (s === 'online' || s === '1');
+    
+    // Aggiorna le statistiche globali ignorando i filtri di ricerca, 
+    // per dare sempre il polso della situazione totale
+    if (isOnline) onlineCount++; else offlineCount++;
+
+    // Applica filtri testuali
+    const matchQ = (n.hostname||'').toLowerCase().includes(q) || (n.description||'').toLowerCase().includes(q);
+    // Applica filtri dropdown
+    const matchSite = (siteFilt === 'ALL') ? true : (n.site_id === siteFilt);
+    let matchStatus = true;
+    if (statFilt === 'ONLINE') matchStatus = isOnline;
+    if (statFilt === 'OFFLINE') matchStatus = !isOnline;
+
+    return matchQ && matchSite && matchStatus;
+  });
+
+  // Aggiorna Top Cards
+  document.getElementById('stat-total').textContent = allNodesList.length;
+  document.getElementById('stat-online').textContent = onlineCount;
+  document.getElementById('stat-offline').textContent = offlineCount;
+
+  // Reset pagina se cambiano i filtri
+  currentPage = 1; 
+  renderTable();
+}
+
+// 3. Paginazione e Rendering Tabella Densa
+function changePage(delta) {
+    currentPage += delta;
+    renderTable();
+}
+
+function renderTable() {
     const tbody = document.getElementById('nodes-tbody');
-    if (!list.length) {
-      tbody.innerHTML = `<tr><td colspan="7">${emptyState('No nodes found', 'Adjust search or register nodes')}</td></tr>`;
+    const totalItems = filteredNodes.length;
+    const totalPages = Math.ceil(totalItems / itemsPerPage) || 1;
+
+    // Sicurezza limiti
+    if (currentPage < 1) currentPage = 1;
+    if (currentPage > totalPages) currentPage = totalPages;
+
+    const startIdx = (currentPage - 1) * itemsPerPage;
+    const endIdx = Math.min(startIdx + itemsPerPage, totalItems);
+    const pageNodes = filteredNodes.slice(startIdx, endIdx);
+
+    // Aggiorna Footer UI
+    document.getElementById('page-info').textContent = totalItems === 0 
+        ? `No nodes found` 
+        : `Showing ${startIdx + 1}-${endIdx} of ${totalItems}`;
+    document.getElementById('page-current').textContent = `Page ${currentPage} of ${totalPages}`;
+    document.getElementById('btn-prev').disabled = (currentPage === 1);
+    document.getElementById('btn-next').disabled = (currentPage === totalPages);
+
+    if (totalItems === 0) {
+      tbody.innerHTML = `<tr><td colspan="8" style="padding:40px">${emptyState('No nodes match criteria', 'Try clearing your filters')}</td></tr>`;
       return;
     }
-    
-    tbody.innerHTML = list.map(n => `
+
+    tbody.innerHTML = pageNodes.map(n => `
       <tr class="clickable" onclick="showNodeDetail('${n.id}', '${esc(n.hostname||n.id)}')">
-        <td class="td-primary">${esc(n.hostname||n.id)}</td>
+        <td class="td-primary" style="font-weight:600">${esc(n.hostname||n.id)}</td>
         <td>${statusBadge(n.status, n.offline_cycles, n.offline_alert_sent)}</td>
-        <td class="mono muted">${esc(n.site_id)}</td>
-        <td>
-           <span class="truncate-desc" title="${esc(n.description || '')}">
-               ${esc(n.description || '—')}
-           </span>
-        </td>
+        <td class="mono muted truncate-hash" title="${esc(n.site_id)}">${esc(n.site_id)}</td>
         <td>${agentTypeBadge(n.agent_type)}</td>
-        <td class="mono muted">${relTime(n.last_seen)}</td>
-        <td class="row justify-end" style="gap:4px">
-          <button class="btn btn-ghost btn-sm" onclick="event.stopPropagation(); openEdit('${esc(n.id)}','${esc(n.description||'')}')">Edit</button>
-          <button class="btn btn-ghost btn-sm" style="color:var(--danger)" onclick="event.stopPropagation(); deleteNode('${esc(n.id)}','${esc(n.hostname||n.id)}')">Delete</button>
+        <td>
+          ${n.cpu_usage!=null?`<div class="row" style="gap:6px;width:70px"><div class="prog"><div class="prog-bar ${barCls(n.cpu_usage)}" style="width:${Math.min(n.cpu_usage,100)}%"></div></div><span class="mono" style="font-size:11px">${fmtPct(n.cpu_usage)}</span></div>`:'<span class="muted">—</span>'}
+        </td>
+        <td>
+          ${n.mem_usage!=null?`<div class="row" style="gap:6px;width:70px"><div class="prog"><div class="prog-bar ${barCls(n.mem_usage)}" style="width:${Math.min(n.mem_usage,100)}%"></div></div><span class="mono" style="font-size:11px">${fmtPct(n.mem_usage)}</span></div>`:'<span class="muted">—</span>'}
+        </td>
+        <td class="mono muted" style="font-size:12px">${relTime(n.last_seen)}</td>
+        <td style="text-align:right" onclick="event.stopPropagation()">
+          <button class="btn btn-ghost btn-sm" title="Edit" onclick="openEdit('${esc(n.id)}','${esc(n.description||'')}')">
+             <svg style="width:14px;height:14px" viewBox="0 0 20 20" fill="currentColor"><path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z"/></svg>
+          </button>
+          <button class="btn btn-ghost btn-sm" title="Delete" style="color:var(--danger)" onclick="deleteNode('${esc(n.id)}','${esc(n.hostname||n.id)}')">
+             <svg style="width:14px;height:14px" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd"/></svg>
+          </button>
         </td>
       </tr>`).join('');
 }
 
-function filterNodes() {
-  const q = document.getElementById('node-search').value.toLowerCase();
-  renderNodes(allNodesList.filter(n => 
-     (n.hostname||'').toLowerCase().includes(q) || 
-     (n.site_id||'').toLowerCase().includes(q) ||
-     (n.description||'').toLowerCase().includes(q)
-  ));
-}
-
-// Funzione globale per mostrare l'heartbeat
+// Tutte le logiche modali rimaste inalterate
 async function showNodeDetail(nodeId, hostname) {
     document.getElementById('nd-title').textContent = hostname;
     document.getElementById('nd-subtitle').textContent = 'Node ID: ' + nodeId;
@@ -164,16 +359,13 @@ async function showNodeDetail(nodeId, hostname) {
 
         let html = `<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px;margin-bottom:20px;">`;
 
-        // --- CARD 1: SYSTEM INFO ---
         html += `<div class="card" style="padding:16px"><div class="card-title" style="margin-bottom:12px">System Info</div>`;
         html += kvRow('IP Address', latest.ip_address);
         
-        // Estraiamo OS e Versione dagli Extra Data
         if (extra.os_platform) {
             const osStr = (extra.os_version && extra.os_version !== "unknown") 
                 ? `${extra.os_platform} (${extra.os_version})` 
                 : extra.os_platform;
-            // Usiamo capitalize (opzionale) o lo stampiamo così com'è
             html += kvRow('OS', esc(osStr));
         }
 
@@ -181,7 +373,6 @@ async function showNodeDetail(nodeId, hostname) {
         html += kvRow('Disk Usage', fmtPct(latest.disk_usage));
         html += `</div>`;
 
-        // --- CARD 2: EXTRA TELEMETRY ---
         html += `<div class="card" style="padding:16px"><div class="card-title" style="margin-bottom:12px">Extra Telemetry</div>`;
         if(Object.keys(extra).length === 0) {
              html += `<span class="muted" style="font-size:13px">No additional telemetry provided by agent.</span>`;
@@ -194,7 +385,6 @@ async function showNodeDetail(nodeId, hostname) {
         }
         html += `</div></div>`;
 
-        // --- TABELLA HEARTBEAT RECENTI ---
         html += `<div class="card"><div class="card-header"><div class="card-title">Recent Heartbeats</div></div>`;
         html += `<div class="table-wrap"><table><thead><tr><th>Time</th><th>CPU</th><th>RAM</th><th>Disk</th></tr></thead><tbody>`;
         html += heartbeats.map(h => `<tr>
