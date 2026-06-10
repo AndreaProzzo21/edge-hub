@@ -918,8 +918,6 @@
                             <h4>Data Plane — Agent</h4>
                         </div>
                         <p>A self-contained, multi-architecture <strong>Go binary</strong> (AMD64 &amp; ARM64). Statically compiled with all dependencies bundled — no runtime installation required on the target node. It auto-detects its environment and operates on a push-based telemetry loop with a minimal resource footprint.</p>
-                        <p><strong>Fail-Fast Security:</strong> The agent respects immediate revocation. Upon a <code>401</code> response, the agent exits immediately via <code>os.Exit</code>, preventing further heartbeat attempts and bandwidth waste. When deployed as a systemd service, the unit file is configured with <code>RestartPreventExitCodes</code> to ensure the process is not restarted after an intentional termination.</p>
-                    </div>
                 </div>
 
                 <h3 style="font-size:0.95rem; font-weight:600; color:var(--text-main); margin:0 0 10px;">Request Lifecycle</h3>
@@ -1072,7 +1070,7 @@
                         <div class="security-icon green"><i class="fas fa-satellite-dish"></i></div>
                         <div class="security-text">
                             <h4>Unidirectional C2</h4>
-                            <p>Agents poll for commands via heartbeats. No inbound ports need to be opened on the edge firewall, ensuring strict NAT compatibility.</p>
+                            <p>Agents poll for commands via heartbeats. No inbound ports need to be opened on the edge firewall, ensuring strict NAT compatibility. The only command currently supported is update_jwt, which triggers a secure, atomic rotation of the agent's authentication token. This design ensures that the Control Plane cannot execute arbitrary tasks, maintaining a strictly limited and secure operation profile.</p>
                         </div>
                     </div>
                 </div>
@@ -1248,7 +1246,7 @@
                             <h4>Configurable Retention Window</h4>
                         </div>
                         <p>The default retention period is <strong>7 days</strong>. This is sufficient for trend analysis and incident review in most edge deployments, while keeping storage requirements predictable.</p>
-                        <p>The retention window is controlled by the <code>retention_days</code> parameter passed to the cleanup task at startup. Adjust it to suit your storage capacity and observability requirements.</p>
+                        <p>The retention window is controlled by the <code>HEARTBEAT_RETENTION_DAYS</code> environmental variable passed to the cleanup task at startup. Adjust it to suit your storage capacity and observability requirements.</p>
                     </div>
                 </div>
 
@@ -1262,7 +1260,7 @@
                 <div class="callout callout-warn">
                     <i class="fas fa-triangle-exclamation"></i>
                     <div>
-                        If you need more than 7 days of telemetry history — for example, for capacity planning or long-term trend analysis — increase <code>retention_days</code> before deploying. Records deleted by the cleanup task are <strong>not recoverable</strong>.
+                        If you need more than 7 days of telemetry history — for example, for capacity planning or long-term trend analysis — increase <code>HEARTBEAT_RETENTION_DAYS</code> before deploying. Records deleted by the cleanup task are <strong>not recoverable</strong>.
                     </div>
                 </div>
             </section>
