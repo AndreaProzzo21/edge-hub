@@ -1,6 +1,6 @@
 from datetime import datetime, timezone
 
-from sqlalchemy import DateTime, Float, ForeignKey, Integer, JSON, String
+from sqlalchemy import DateTime, Float, ForeignKey, Integer, JSON, String, Index
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from .base import Base
@@ -9,12 +9,16 @@ from .base import Base
 class Heartbeat(Base):
     __tablename__ = "heartbeats"
 
+    # Definizione dell'indice composto
+    __table_args__ = (
+        Index("ix_heartbeats_node_timestamp_desc", "node_id", "timestamp"),
+    )
+
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     
-    # AGGIUNTO: ondelete="CASCADE"
+
     node_id: Mapped[str] = mapped_column(
-        ForeignKey("nodes.id", ondelete="CASCADE"), 
-        index=True
+        ForeignKey("nodes.id", ondelete="CASCADE")
     )
 
     # Metriche base
@@ -25,7 +29,6 @@ class Heartbeat(Base):
 
     # Campi opzionali
     ip_address: Mapped[str | None] = mapped_column(String(45), nullable=True)
-
     extra_data: Mapped[dict | None] = mapped_column(JSON, nullable=True)
 
     timestamp: Mapped[datetime] = mapped_column(
