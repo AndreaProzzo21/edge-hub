@@ -25,7 +25,7 @@ async def lifespan(app: FastAPI):
     
     # Avvia i task in background
     offline_task = asyncio.create_task(offline_detector_loop())
-    cleanup_task = asyncio.create_task(heartbeat_cleanup_task(retention_days=7))
+    cleanup_task = asyncio.create_task(heartbeat_cleanup_task())
     
     yield
     
