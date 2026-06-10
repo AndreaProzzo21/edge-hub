@@ -133,8 +133,8 @@ if [[ -z "$JWT_SECRET_KEY" ]]; then
 fi
 echo ""
 _info "How long should Agent tokens remain valid (in minutes)?"
-_info "We recommend keeping the default (10 years) to avoid agents silently disconnecting."
-_prompt "JWT Expiration (minutes)" "5256000"
+_info "We recommend keeping the default (1 year). You can always rotate the agent JWT from the dashboard."
+_prompt "JWT Expiration (minutes)" "525600"
 JWT_EXPIRE_MINUTES="$REPLY"
 
 _step "Monitoring & Heartbeat (Optional)"
