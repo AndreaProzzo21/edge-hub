@@ -23,10 +23,10 @@ async def _check_once() -> None:
         seconds=settings.NODE_OFFLINE_THRESHOLD_SECONDS
     )
     
+    # 1. Creiamo una coda temporanea per gli alert
+    alerts_to_dispatch = []
+    
     async with async_session() as db:
-        # Seleziona i nodi che non comunicano da troppo tempo
-        # e per cui NON abbiamo ancora inviato l'alert finale.
-        # Usa selectinload per recuperare in modo efficiente i dati del Sito (webhook).
         result = await db.execute(
             select(Node)
             .options(selectinload(Node.site))
@@ -38,35 +38,47 @@ async def _check_once() -> None:
         stale_nodes = result.scalars().all()
 
         updated_count = 0
-        alert_count = 0
 
         for node in stale_nodes:
-            # Cambia lo stato in OFFLINE se era ONLINE
             if node.status == NodeStatus.ONLINE:
                 node.status = NodeStatus.OFFLINE
             
-            # Incrementa il contatore dei cicli offline
             node.offline_cycles += 1
             updated_count += 1
 
-            # Controllo soglia dei 3 cicli
             if node.offline_cycles >= 3:
-                # Evita di spammare nei cicli futuri
                 node.offline_alert_sent = True
-                alert_count += 1
                 
-                # Lancia l'invio dei webhook in background senza bloccare il database
+                # 2. Invece di sparare il task subito, lo mettiamo in coda
                 if node.site:
-                    asyncio.create_task(dispatch_offline_alerts(node, node.site))
+                    alerts_to_dispatch.append((node, node.site))
 
-        # Eseguiamo il commit solo se c'è stato almeno un aggiornamento
         if updated_count > 0:
             await db.commit()
             logger.info(
-                "Processed %d nodes stale (updating cycle and status). Sent %d alert.",
+                "Processed %d stale nodes. Queued %d alerts for dispatch.",
                 updated_count,
-                alert_count
+                len(alerts_to_dispatch)
             )
+
+    # 3. Fuori dalla sessione DB, avviamo un singolo task per smaltire la coda
+    if alerts_to_dispatch:
+        asyncio.create_task(_process_alerts_with_delay(alerts_to_dispatch))
+
+
+async def _process_alerts_with_delay(alerts: list) -> None:
+    """
+    Processa la coda degli alert inserendo un ritardo artificiale (Rate Limiting)
+    per evitare di essere bannati dalle API di Discord/Slack (Errore 429).
+    """
+    for node, site in alerts:
+        try:
+            await dispatch_offline_alerts(node, site)
+        except Exception as e:
+            logger.error(f"Errore durante l'invio dell'alert per il nodo {node.id}: {e}")
+        
+        # Pausa di mezzo secondo tra un webhook e l'altro (Max 2 messaggi al secondo)
+        await asyncio.sleep(0.5)
 
 
 async def offline_detector_loop() -> None:
