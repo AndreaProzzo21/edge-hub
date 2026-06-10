@@ -1,4 +1,5 @@
 services:
+  # PostgreSQL: Primary database for node metadata, telemetry, and site configs
   postgres:
     image: postgres:17
     container_name: edgehub-postgres
@@ -14,9 +15,17 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'        # Max 1 CPU core
+          memory: 1G         # Max 1GB RAM
+        reservations:
+          cpus: '0.2'
+          memory: 256M
 
+  # EdgeHub Backend: The Control Plane (FastAPI)
   backend:
-    # Sostituisci "tuo-utente" con il tuo account DockerHub o GitHub Packages (es. ghcr.io/avalab/edgehub-backend:latest)
     image: aprozzo/edgehub-backend:latest
     container_name: edgehub-backend
     restart: unless-stopped
@@ -25,16 +34,32 @@ services:
         condition: service_healthy
     env_file:
       - .env
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'        # Max 1 CPU core
+          memory: 512M       # Max 512MB RAM
+        reservations:
+          cpus: '0.1'
+          memory: 128M
 
+  # EdgeHub Frontend: Nginx serving the dashboard and handling routing
   nginx:
     image: aprozzo/edgehub-frontend:latest
     container_name: edgehub-nginx
     restart: unless-stopped
     ports:
       - "${EDGEHUB_PORT:-80}:80"
-      # - "443:443"
     depends_on:
       - backend
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'        # Max half a CPU core
+          memory: 256M       # Max 256MB RAM
+        reservations:
+          cpus: '0.1'
+          memory: 64M
 
 volumes:
   postgres_data:
