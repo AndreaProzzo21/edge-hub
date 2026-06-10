@@ -1,26 +1,46 @@
+//go:build docker || linux
+// (Nota: se usi i build tags, assicurati che siano presenti, altrimenti ignora questa riga)
+
 package collector
 
 import (
 	"context"
 	"strings"
+	"sync"
 
-	"github.com/docker/docker/api/types" // Ripristinato l'import corretto per la tua versione
+	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/client"
 	"github.com/avalab/edgehub-agent/internal/models"
 )
 
-// EnrichWithDocker aggiunge le metriche specifiche dei container al payload
-func EnrichWithDocker(payload *models.HeartbeatRequest) {
-	// Crea un client Docker leggendo l'ambiente (es. /var/run/docker.sock)
-	cli, err := client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
+var (
+	// Variabili globali a livello di pacchetto per mantenere la connessione aperta
+	dockerCli  *client.Client
+	dockerErr  error
+	dockerOnce sync.Once
+)
+
+// getDockerClient garantisce che il client venga inizializzato una sola volta (Singleton)
+func getDockerClient() (*client.Client, error) {
+	dockerOnce.Do(func() {
+		dockerCli, dockerErr = client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
+	})
+	return dockerCli, dockerErr
+}
+
+// EnrichWithDocker aggiunge le metriche specifiche dei container al payload.
+// Riceve ora il context per supportare il graceful shutdown.
+func EnrichWithDocker(ctx context.Context, payload *models.HeartbeatRequest) {
+	cli, err := getDockerClient()
 	if err != nil {
 		payload.ExtraData["docker_error"] = "Impossibile connettersi al demone Docker: " + err.Error()
 		return
 	}
-	defer cli.Close()
+	// ATTENZIONE: Abbiamo rimosso defer cli.Close()!
+	// Il client ora vive finché vive l'agente.
 
-	// Chiede a Docker la lista di TUTTI i container usando types.ContainerListOptions
-	containers, err := cli.ContainerList(context.Background(), types.ContainerListOptions{All: true})
+	// Chiede a Docker la lista di TUTTI i container passando il context corretto
+	containers, err := cli.ContainerList(ctx, types.ContainerListOptions{All: true})
 	if err != nil {
 		payload.ExtraData["docker_error"] = "Errore lettura container: " + err.Error()
 		return
@@ -29,7 +49,7 @@ func EnrichWithDocker(payload *models.HeartbeatRequest) {
 	running := 0
 	stopped := 0
 	paused := 0
-	
+
 	var runningNames []string
 	var stoppedNames []string
 
@@ -44,13 +64,13 @@ func EnrichWithDocker(payload *models.HeartbeatRequest) {
 		switch c.State {
 		case "running":
 			running++
-			// Raccogliamo i nomi dei container attivi (limite 10 per non esplodere il payload)
+			// Limitiamo a 10 per non esplodere il payload
 			if name != "" && len(runningNames) < 10 {
 				runningNames = append(runningNames, name)
 			}
 		case "exited", "dead", "created":
 			stopped++
-			// Raccogliamo i nomi dei container fermi (fondamentale per il troubleshooting, limite 5)
+			// Limitiamo a 5 per i container fermi
 			if name != "" && len(stoppedNames) < 5 {
 				stoppedNames = append(stoppedNames, name)
 			}
@@ -64,7 +84,7 @@ func EnrichWithDocker(payload *models.HeartbeatRequest) {
 	payload.ExtraData["docker_running"] = running
 	payload.ExtraData["docker_stopped"] = stopped
 	payload.ExtraData["docker_paused"] = paused
-	
+
 	// Inserisce i dati avanzati di osservabilità
 	payload.ExtraData["docker_running_names"] = runningNames
 	payload.ExtraData["docker_stopped_names"] = stoppedNames

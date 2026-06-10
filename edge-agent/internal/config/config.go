@@ -8,17 +8,13 @@ import (
 	"strings"
 )
 
-// Define the agent version here (can be injected via CI/CD later)
 const AgentVersion = "1.0.0"
 
-// Config contains all settings and node metadata
 type Config struct {
 	BackendURL  string
 	Token       string
-	StateFile   string // Where we save the JWT to survive reboots
-	Interval    int    // Heartbeat interval in seconds
-
-	// Registration metadata (aligned with Pydantic Model)
+	StateFile   string
+	Interval    int
 	Hostname    string
 	Description string
 	AgentType   string
@@ -27,20 +23,28 @@ type Config struct {
 	Arch        string
 }
 
-// Load reads environment variables and auto-detects system data
 func Load() *Config {
-	// 1. Base connection variables
 	url := os.Getenv("EDGEHUB_URL")
-	token := os.Getenv("EDGEHUB_TOKEN") // Mandatory only for first registration
+	token := os.Getenv("EDGEHUB_TOKEN")
 	stateFile := getEnvOrDefault("EDGEHUB_STATE_FILE", "edgehub-state.json")
 
-	// 2. Agent Type detection (Mode)
+	// Validazione URL — deve avere schema http:// o https://, altrimenti
+	// il client HTTP va in panic con un errore incomprensibile per chi installa.
+	if url == "" {
+		log.Fatalf("FATAL: EDGEHUB_URL is required but not set.")
+	}
+	if !strings.HasPrefix(url, "http://") && !strings.HasPrefix(url, "https://") {
+		log.Fatalf("FATAL: EDGEHUB_URL must start with http:// or https://. Got: %q", url)
+	}
+	// Rimuove lo slash finale se presente — evita double-slash negli endpoint
+	// es. "https://backend.example.com/" + "/api/v1/..." → "https://backend.example.com/api/v1/..."
+	url = strings.TrimRight(url, "/")
+
 	agentType := strings.ToLower(getEnvOrDefault("EDGEHUB_MODE", "linux"))
 	if agentType != "linux" && agentType != "docker" && agentType != "kubernetes" {
-		log.Fatalf("FATAL ERROR: EDGEHUB_MODE must be 'linux', 'docker', or 'kubernetes'. Received: %s", agentType)
+		log.Fatalf("FATAL: EDGEHUB_MODE must be 'linux', 'docker', or 'kubernetes'. Got: %q", agentType)
 	}
 
-	// 3. Hostname detection
 	hostname := os.Getenv("EDGEHUB_HOSTNAME")
 	if hostname == "" {
 		sysHost, err := os.Hostname()
@@ -51,18 +55,14 @@ func Load() *Config {
 		}
 	}
 
-	// 4. Optional description
 	description := os.Getenv("EDGEHUB_DESCRIPTION")
+	osName := runtime.GOOS
+	archName := runtime.GOARCH
 
-	// 5. OS and Architecture detection
-	osName := runtime.GOOS   // e.g., "linux", "windows", "darwin"
-	archName := runtime.GOARCH // e.g., "amd64", "arm64"
-
-	// 6. Heartbeat Interval
 	intervalStr := getEnvOrDefault("EDGEHUB_INTERVAL", "30")
 	interval, err := strconv.Atoi(intervalStr)
 	if err != nil || interval <= 0 {
-		log.Printf("WARN: Invalid EDGEHUB_INTERVAL '%s', falling back to default 30s", intervalStr)
+		log.Printf("WARN: Invalid EDGEHUB_INTERVAL %q, falling back to 30s", intervalStr)
 		interval = 30
 	}
 
@@ -80,7 +80,6 @@ func Load() *Config {
 	}
 }
 
-// Helper to read an env var or fallback to a default value
 func getEnvOrDefault(key, defaultVal string) string {
 	if val := os.Getenv(key); val != "" {
 		return val
