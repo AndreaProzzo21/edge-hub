@@ -70,9 +70,9 @@
               EdgeHub employs a unidirectional polling architecture, ensuring agents remain secure behind strict NATs or firewalls without requiring open inbound ports.
             </p>
             <ul class="doc-list">
-              <li><strong>Polling Mechanism:</strong> Agents retrieve pending commands (e.g., token rotations) seamlessly during their scheduled heartbeat cycles.</li>
-              <li><strong>Zero-Downtime Rotation:</strong> JWT renewals utilize a Rolling JTI (JWT ID) strategy. The existing token remains fully valid until the agent explicitly acknowledges and uses the newly issued token.</li>
-              <li><strong>Manual Recovery:</strong> If an agent's token fully expires and disconnects, the C2 channel is severed. Administrators must delete the local state file and re-provision the node manually.</li>
+              <li><strong>Strictly Scoped Operations:</strong> Agents retrieve pending commands seamlessly during scheduled heartbeats. In v1, the <em>only</em> available command is <code>update_jwt</code>.</li>
+              <li><strong>Zero-Downtime Rotation:</strong> This single command triggers a secure, atomic rotation of the agent's authentication token using a Rolling JTI strategy, guaranteeing uninterrupted telemetry.</li>
+              <li><strong>No Remote Execution:</strong> The C2 implementation is intentionally minimalist. The agent is strictly limited to refreshing its own credentials and possesses no capability to execute arbitrary shell commands, manage system processes, or modify the host OS.</li>
             </ul>
           </div>
         </div>
