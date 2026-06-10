@@ -63,7 +63,7 @@ async def _check_once() -> None:
         if updated_count > 0:
             await db.commit()
             logger.info(
-                "Processati %d nodi stale (aggiornamento cicli e status). Inviati %d alert.",
+                "Processed %d nodes stale (updating cycle and status). Sent %d alert.",
                 updated_count,
                 alert_count
             )

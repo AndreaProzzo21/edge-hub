@@ -18,13 +18,16 @@ class Settings(BaseSettings):
     # Se omesso nell'env, chiama la funzione generate_jwt_secret all'avvio
     JWT_SECRET_KEY: str = Field(default_factory=generate_jwt_secret)
     JWT_ALGORITHM: str = "HS256"
-    JWT_EXPIRE_MINUTES: int = 5256000
+    JWT_EXPIRE_MINUTES: int = 525600
 
     # Dopo quanti secondi un nodo passa a "offline"
     NODE_OFFLINE_THRESHOLD_SECONDS: int = 100
 
     # Intervallo del task che controlla i nodi offline (secondi)
     OFFLINE_CHECK_INTERVAL_SECONDS: int = 30
+
+    # Giorni di ritenzione per i dati di telemetria (heartbeat) prima della pulizia
+    HEARTBEAT_RETENTION_DAYS: int = 7
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
