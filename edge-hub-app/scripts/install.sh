@@ -138,9 +138,14 @@ _prompt "JWT Expiration (minutes)" "5256000"
 JWT_EXPIRE_MINUTES="$REPLY"
 
 _step "Monitoring & Heartbeat (Optional)"
-_info "How many seconds before a node is considered offline?"
+
+_info "How many seconds of missed heartbeats before a node is marked as offline?"
 _prompt "Offline Threshold (seconds)" "100"
 OFFLINE_THRESHOLD="$REPLY"
+
+_info "How many days should historical heartbeat data be retained before automatic cleanup?"
+_prompt "Retention Period (days)" "7"
+HEARTBEAT_RETENTION_DAYS="$REPLY"
 
 # --- 4. GENERATING .ENV FILE ---
 _step "Applying configuration..."
@@ -169,6 +174,7 @@ JWT_EXPIRE_MINUTES=${JWT_EXPIRE_MINUTES}
 
 # --- Monitoring ---
 NODE_OFFLINE_THRESHOLD_SECONDS=${OFFLINE_THRESHOLD}
+HEARTBEAT_RETENTION_DAYS=${HEARTBEAT_RETENTION_DAYS}
 OFFLINE_CHECK_INTERVAL_SECONDS=30
 EOF
 
