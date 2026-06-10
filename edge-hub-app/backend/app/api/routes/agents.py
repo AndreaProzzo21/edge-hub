@@ -3,7 +3,7 @@ import uuid
 import asyncio
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from jose import JWTError
 from sqlalchemy import select
@@ -142,6 +142,7 @@ async def register_agent(
 @router.post("/heartbeat", response_model=HeartbeatResponse)
 async def heartbeat(
     body: HeartbeatRequest,
+    background_tasks: BackgroundTasks,
     node: Node = Depends(get_current_node),
     db: AsyncSession = Depends(get_db),
 ):
@@ -170,7 +171,7 @@ async def heartbeat(
         if getattr(node, 'offline_alert_sent', False):
             site = await db.get(Site, node.site_id)
             if site:
-                asyncio.create_task(dispatch_recovery_alerts(node, site))
+                background_tasks.add_task(dispatch_recovery_alerts, node, site)
         
         node.offline_cycles = 0
         node.offline_alert_sent = False
