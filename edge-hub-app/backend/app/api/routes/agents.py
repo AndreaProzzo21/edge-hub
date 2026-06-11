@@ -258,7 +258,6 @@ async def heartbeat(
     await db.commit()
 
     # --- BROADCAST WEBSOCKET ---
-    # ✅ Errori del broadcast loggati invece di essere inghiottiti silenziosamente
     task = asyncio.create_task(ws_manager.broadcast(node.site_id, {
         "event_type": "heartbeat",
         "timestamp": now.isoformat(),
@@ -271,7 +270,7 @@ async def heartbeat(
         },
     }))
     task.add_done_callback(
-        lambda t: logger.error("WS broadcast failed for node %s: %s", node.id, t.exception())
+        lambda t: print(f"WS broadcast failed for node {node.id}: {t.exception()}")
         if t.exception() else None
     )
 
