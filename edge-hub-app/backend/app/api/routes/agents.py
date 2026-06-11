@@ -1,7 +1,7 @@
 import hashlib
 import uuid
 import asyncio
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
@@ -9,7 +9,6 @@ from jose import JWTError
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-# CAMBIO IMPORT: Usiamo decode_agent_jwt_full
 from ...core.security import create_agent_jwt, decode_agent_jwt_full
 from ...infrastructure.database import get_db
 from ...models.heartbeat import Heartbeat
@@ -18,7 +17,7 @@ from ...models.registration_token import RegistrationToken
 from ...models.site import Site
 from ...schemas.agent import AgentRegisterRequest, AgentRegisterResponse
 from ...schemas.heartbeat import HeartbeatRequest, HeartbeatResponse
-from ...services.alert_engine import dispatch_recovery_alerts
+from ...services.alert_engine import dispatch_recovery_alerts, dispatch_metric_alert
 from .websockets import ws_manager
 
 router = APIRouter(prefix="/agents", tags=["agents"])
@@ -136,6 +135,13 @@ async def register_agent(
     return AgentRegisterResponse(node_id=node.id, agent_token=agent_token)
 
 
+ALERT_THRESHOLDS = {
+    "cpu": 40.0,  # Alert se CPU > 95%
+    "temp": 40.0, # Alert se Temp > 80°C
+    "disk": 70.0  # Alert se Disco > 90%
+}
+COOLDOWN_MINUTES = 10 # Non ripetere lo stesso alert per 60 minuti
+
 # ---------------------------------------------------------------------------
 # POST /agents/heartbeat
 # ---------------------------------------------------------------------------
@@ -148,6 +154,7 @@ async def heartbeat(
 ):
     now = datetime.now(timezone.utc)
 
+    # 1. Salvataggio record storico
     hb = Heartbeat(
         node_id=node.id,
         cpu_usage=body.cpu_usage,
@@ -160,13 +167,14 @@ async def heartbeat(
     )
     db.add(hb)
 
+    # 2. Aggiornamento stato del nodo
     node.last_seen = now
     node.status = NodeStatus.ONLINE
     node.cpu_usage = body.cpu_usage      
     node.mem_usage = body.memory_usage
     node.uptime_seconds = body.uptime_seconds
 
-    # --- LOGICA ALERT ENGINE ---
+    # --- LOGICA ALERT ENGINE: OFFLINE & RECOVERY ---
     if getattr(node, 'offline_cycles', 0) > 0 or getattr(node, 'offline_alert_sent', False):
         if getattr(node, 'offline_alert_sent', False):
             site = await db.get(Site, node.site_id)
@@ -175,6 +183,48 @@ async def heartbeat(
         
         node.offline_cycles = 0
         node.offline_alert_sent = False
+
+    # --- LOGICA ALERT ENGINE: METRICHE IN SOFFERENZA (CPU, TEMP, DISK) ---
+    if getattr(node, 'last_alert_timestamps', None) is None:
+        node.last_alert_timestamps = {}
+        
+    alerts_to_send = []
+    current_temp = body.extra_data.get("cpu_temp_celsius", 0.0) if body.extra_data else 0.0
+    
+    metrics_to_check = {
+        "cpu": body.cpu_usage,
+        "disk": body.disk_usage,
+        "temp": current_temp
+    }
+
+    # Creiamo una copia per far capire a SQLAlchemy che il JSON sta cambiando
+    new_timestamps = dict(node.last_alert_timestamps)
+    
+    for m_type, val in metrics_to_check.items():
+        if val is not None and val >= ALERT_THRESHOLDS[m_type]:
+            last_alert_str = new_timestamps.get(m_type)
+            can_send = True
+            
+            if last_alert_str:
+                try:
+                    last_alert_time = datetime.fromisoformat(last_alert_str)
+                    if now < last_alert_time + timedelta(minutes=COOLDOWN_MINUTES):
+                        can_send = False
+                except ValueError:
+                    pass # Se il timestamp è malformato, ignoralo e manda l'alert
+            
+            if can_send:
+                alerts_to_send.append((m_type, val, ALERT_THRESHOLDS[m_type]))
+                new_timestamps[m_type] = now.isoformat()
+
+    if alerts_to_send:
+        # Applichiamo il nuovo dizionario al nodo
+        node.last_alert_timestamps = new_timestamps
+        # Carichiamo il sito solo se c'è almeno un alert da inviare (ottimizzazione query)
+        site = await db.get(Site, node.site_id)
+        if site:
+            for m_type, val, thresh in alerts_to_send:
+                background_tasks.add_task(dispatch_metric_alert, node, site, m_type.upper(), val, thresh)
 
     # --- LOGICA: COMMAND & CONTROL ---
     command_to_send = None
@@ -185,6 +235,7 @@ async def heartbeat(
 
     await db.commit()
 
+    # --- BROADCAST WEBSOCKET ---
     asyncio.create_task(ws_manager.broadcast(node.site_id, {
         "event_type": "heartbeat",
         "timestamp": now.isoformat(),
