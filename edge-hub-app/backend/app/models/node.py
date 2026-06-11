@@ -35,6 +35,7 @@ class Node(Base):
     uptime_seconds: Mapped[float | None] = mapped_column(Float, nullable=True)
     offline_cycles = Column(Integer, default=0, nullable=False)
     offline_alert_sent = Column(Boolean, default=False, nullable=False)
+    last_alert_timestamps: Mapped[dict] = mapped_column(JSON, default=dict, nullable=False)
 
     # --- COMMAND & CONTROL & SICUREZZA ---
     pending_command: Mapped[dict | None] = mapped_column(JSON, nullable=True)

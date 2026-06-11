@@ -21,7 +21,7 @@ class NodeResponse(BaseModel):
     # --- CAMPI ALERT ENGINE ---
     offline_cycles: int
     offline_alert_sent: bool
-
+    last_alert_timestamps: dict[str, str] = Field(default_factory=dict)
     # --- CAMPI COMMAND & CONTROL & SICUREZZA ---
     # Mostra se c'è un comando in attesa di essere ritirato dall'agente
     pending_command: dict[str, Any] | None = None
