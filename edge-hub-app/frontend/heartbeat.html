@@ -641,14 +641,54 @@ function miniBar(val) {
 function exportCSV() {
   if (!currentResults.length) return;
   const nodeName = document.getElementById('filter-node').selectedOptions[0]?.text || 'node';
+
+  // 1. Trova tutte le chiavi uniche
+  const columns = new Set();
+  currentResults.forEach(h => {
+    for (const key in h) {
+      if (key === 'extra_data' && typeof h[key] === 'object' && h[key] !== null) {
+        for (const extraKey in h[key]) {
+          columns.add(`extra_data.${extraKey}`);
+        }
+      } else {
+        columns.add(key);
+      }
+    }
+  });
+
+  const headerRow = Array.from(columns);
+
+  // 2. Mappa i dati
   const rows = [
-    ['timestamp','cpu_usage','memory_usage','disk_usage','cpu_temp_celsius','uptime_seconds','ip_address'],
-    ...currentResults.map(h => [
-      h.timestamp, h.cpu_usage ?? '', h.memory_usage ?? '',
-      h.disk_usage ?? '', h.extra_data?.cpu_temp_celsius ?? '',
-      h.uptime_seconds ?? '', h.ip_address ?? ''
-    ])
+    headerRow,
+    ...currentResults.map(h => {
+      return headerRow.map(col => {
+        let val;
+        
+        if (col.startsWith('extra_data.')) {
+          const extraKey = col.replace('extra_data.', '');
+          val = h.extra_data ? h.extra_data[extraKey] : '';
+        } else {
+          val = h[col];
+        }
+
+        if (val == null) return '';
+        
+        // --- LA MODIFICA È QUI ---
+        // Se il valore è un oggetto o un array, convertilo in JSON.
+        // Altrimenti, convertilo in stringa normale.
+        const valStr = typeof val === 'object' ? JSON.stringify(val) : String(val);
+
+        // Escaping standard per il CSV: gestisce virgole e virgolette create dal JSON
+        if (valStr.includes(',') || valStr.includes('"') || valStr.includes('\n')) {
+          return `"${valStr.replace(/"/g, '""')}"`;
+        }
+        return valStr;
+      });
+    })
   ];
+
+  // 3. Genera e scarica il file
   const csv  = rows.map(r => r.join(',')).join('\n');
   const blob = new Blob([csv], { type: 'text/csv' });
   const url  = URL.createObjectURL(blob);
