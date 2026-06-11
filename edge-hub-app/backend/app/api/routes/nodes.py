@@ -1,4 +1,5 @@
-from datetime import datetime
+from datetime import datetime, timezone
+from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
@@ -120,4 +121,61 @@ async def get_node_heartbeats(
         .order_by(Heartbeat.timestamp.desc())
         .limit(min(limit, 1000))
     )
+    return result.scalars().all()
+
+
+@router.get("/{node_id}/heartbeats/range", response_model=list[HeartbeatRecord], dependencies=[AdminSessionDep])
+async def get_node_heartbeats_range(
+    node_id: str,
+    from_ts: Optional[datetime] = None,
+    to_ts: Optional[datetime] = None,
+    limit: int = 500,
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Restituisce heartbeat filtrati per range temporale.
+    - from_ts: non può essere nel futuro
+    - to_ts:   se assente, default a now; se futuro, viene cappato a now
+    - from_ts deve essere < to_ts
+    - limit:   max 2000
+    """
+    node = await db.get(Node, node_id)
+    if not node:
+        raise HTTPException(status_code=404, detail="Node not found")
+
+    now = datetime.now(timezone.utc)
+
+    # Cap limit
+    limit = min(limit, 2000)
+
+    # from_ts non può essere nel futuro
+    if from_ts is not None and from_ts > now:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="'from_ts' cannot be in the future"
+        )
+
+    # to_ts: default a now, oppure cap se supera now
+    if to_ts is None:
+        to_ts = now
+    elif to_ts > now:
+        to_ts = now
+
+    # from_ts deve essere strettamente minore di to_ts
+    if from_ts is not None and from_ts >= to_ts:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="'from_ts' must be earlier than 'to_ts'"
+        )
+
+    query = (
+        select(Heartbeat)
+        .where(Heartbeat.node_id == node_id)
+        .where(Heartbeat.timestamp <= to_ts)
+    )
+    if from_ts is not None:
+        query = query.where(Heartbeat.timestamp >= from_ts)
+
+    query = query.order_by(Heartbeat.timestamp.desc()).limit(limit)
+    result = await db.execute(query)
     return result.scalars().all()
