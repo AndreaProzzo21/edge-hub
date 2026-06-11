@@ -131,6 +131,19 @@ func CollectSystemMetrics(agentMode string) *models.HeartbeatRequest {
 		netErrOut = netIO[0].Errout
 	}
 
+	// ==========================================
+    // 11. TEMPERATURE
+    // ==========================================
+    var maxTemp float64 = 0.0
+    temperatures, err := host.SensorsTemperatures()
+    if err == nil {
+        for _, temp := range temperatures {
+            if temp.Temperature > maxTemp && temp.Temperature < 200.0 {
+                maxTemp = temp.Temperature
+            }
+        }
+    }
+
 	// Connessioni TCP stabilite — spike improvvisi segnalano DDoS o leak di connessioni
 	tcpEstablished := 0
 	conns, _ := psnet.Connections("tcp")
@@ -155,6 +168,7 @@ func CollectSystemMetrics(agentMode string) *models.HeartbeatRequest {
 		"cpu_model":         cpuModel,
 		"cpu_cores_logical":  cores,
 		"cpu_cores_physical": physicalCores,
+		"cpu_temp_celsius":   maxTemp,
 
 		// RAM
 		"mem_total_gb":     memTotal,
