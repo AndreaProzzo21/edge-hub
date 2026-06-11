@@ -8,6 +8,7 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from jose import JWTError
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm.attributes import flag_modified
 
 from ...core.security import create_agent_jwt, decode_agent_jwt_full
 from ...infrastructure.database import get_db
@@ -134,17 +135,18 @@ async def register_agent(
 
     return AgentRegisterResponse(node_id=node.id, agent_token=agent_token)
 
-
-ALERT_THRESHOLDS = {
-    "cpu": 40.0,  # Alert se CPU > 95%
-    "temp": 40.0, # Alert se Temp > 80°C
-    "disk": 70.0  # Alert se Disco > 90%
-}
-COOLDOWN_MINUTES = 10 # Non ripetere lo stesso alert per 60 minuti
-
 # ---------------------------------------------------------------------------
 # POST /agents/heartbeat
 # ---------------------------------------------------------------------------
+
+ALERT_THRESHOLDS = {
+    "cpu": 50.0,
+    "temp": 60.0,
+    "disk": 40.0,
+}
+COOLDOWN_MINUTES = 60
+
+
 @router.post("/heartbeat", response_model=HeartbeatResponse)
 async def heartbeat(
     body: HeartbeatRequest,
@@ -170,73 +172,94 @@ async def heartbeat(
     # 2. Aggiornamento stato del nodo
     node.last_seen = now
     node.status = NodeStatus.ONLINE
-    node.cpu_usage = body.cpu_usage      
+    node.cpu_usage = body.cpu_usage
     node.mem_usage = body.memory_usage
     node.uptime_seconds = body.uptime_seconds
 
     # --- LOGICA ALERT ENGINE: OFFLINE & RECOVERY ---
-    if getattr(node, 'offline_cycles', 0) > 0 or getattr(node, 'offline_alert_sent', False):
-        if getattr(node, 'offline_alert_sent', False):
+    offline_cycles = getattr(node, "offline_cycles", 0)
+    offline_alert_sent = getattr(node, "offline_alert_sent", False)
+
+    if offline_cycles > 0 or offline_alert_sent:
+        if offline_alert_sent:
             site = await db.get(Site, node.site_id)
             if site:
                 background_tasks.add_task(dispatch_recovery_alerts, node, site)
-        
+
         node.offline_cycles = 0
         node.offline_alert_sent = False
 
     # --- LOGICA ALERT ENGINE: METRICHE IN SOFFERENZA (CPU, TEMP, DISK) ---
-    if getattr(node, 'last_alert_timestamps', None) is None:
-        node.last_alert_timestamps = {}
-        
     alerts_to_send = []
     current_temp = body.extra_data.get("cpu_temp_celsius", 0.0) if body.extra_data else 0.0
-    
+
     metrics_to_check = {
         "cpu": body.cpu_usage,
         "disk": body.disk_usage,
-        "temp": current_temp
+        "temp": current_temp,
     }
 
-    # Creiamo una copia per far capire a SQLAlchemy che il JSON sta cambiando
-    new_timestamps = dict(node.last_alert_timestamps)
-    
+    current_timestamps = getattr(node, "last_alert_timestamps", {})
+    if not isinstance(current_timestamps, dict):
+        current_timestamps = {}
+
+    new_timestamps = dict(current_timestamps)
+    now_unix = now.timestamp()
+
     for m_type, val in metrics_to_check.items():
         if val is not None and val >= ALERT_THRESHOLDS[m_type]:
-            last_alert_str = new_timestamps.get(m_type)
+            last_alert_unix = new_timestamps.get(m_type)
             can_send = True
-            
-            if last_alert_str:
+
+            if last_alert_unix is not None:
                 try:
-                    last_alert_time = datetime.fromisoformat(last_alert_str)
-                    if now < last_alert_time + timedelta(minutes=COOLDOWN_MINUTES):
+                    if now_unix < float(last_alert_unix) + (COOLDOWN_MINUTES * 60):
                         can_send = False
-                except ValueError:
-                    pass # Se il timestamp è malformato, ignoralo e manda l'alert
-            
+                except (ValueError, TypeError):
+                    pass
+
             if can_send:
                 alerts_to_send.append((m_type, val, ALERT_THRESHOLDS[m_type]))
-                new_timestamps[m_type] = now.isoformat()
+                new_timestamps[m_type] = now_unix
 
     if alerts_to_send:
-        # Applichiamo il nuovo dizionario al nodo
         node.last_alert_timestamps = new_timestamps
-        # Carichiamo il sito solo se c'è almeno un alert da inviare (ottimizzazione query)
+        flag_modified(node, "last_alert_timestamps")
+
+        # ✅ db.get usa la identity map: se il sito è già stato caricato sopra
+        #    nel blocco recovery, non fa una seconda query al DB.
         site = await db.get(Site, node.site_id)
         if site:
+            node_hostname       = node.hostname
+            node_id             = node.id
+            site_name           = site.name
+            discord_webhook_url = site.discord_webhook_url
+            slack_webhook_url   = site.slack_webhook_url
+
             for m_type, val, thresh in alerts_to_send:
-                background_tasks.add_task(dispatch_metric_alert, node, site, m_type.upper(), val, thresh)
+                background_tasks.add_task(
+                    dispatch_metric_alert,
+                    node_hostname,
+                    node_id,
+                    site_name,
+                    discord_webhook_url,
+                    slack_webhook_url,
+                    m_type.upper(),
+                    val,
+                    thresh,
+                )
 
     # --- LOGICA: COMMAND & CONTROL ---
     command_to_send = None
-    if getattr(node, 'pending_command', None):
+    if getattr(node, "pending_command", None):
         command_to_send = node.pending_command
-        # Svuota la cassetta della posta dopo aver prelevato il comando
         node.pending_command = None
 
     await db.commit()
 
     # --- BROADCAST WEBSOCKET ---
-    asyncio.create_task(ws_manager.broadcast(node.site_id, {
+    # ✅ Errori del broadcast loggati invece di essere inghiottiti silenziosamente
+    task = asyncio.create_task(ws_manager.broadcast(node.site_id, {
         "event_type": "heartbeat",
         "timestamp": now.isoformat(),
         "node_id": node.id,
@@ -244,16 +267,19 @@ async def heartbeat(
         "telemetry": {
             "cpu_usage": body.cpu_usage,
             "memory_usage": body.memory_usage,
-            "disk_usage": body.disk_usage
-        }
+            "disk_usage": body.disk_usage,
+        },
     }))
-    
-    return HeartbeatResponse(
-        node_id=node.id, 
-        timestamp=now,
-        command=command_to_send
+    task.add_done_callback(
+        lambda t: logger.error("WS broadcast failed for node %s: %s", node.id, t.exception())
+        if t.exception() else None
     )
 
+    return HeartbeatResponse(
+        node_id=node.id,
+        timestamp=now,
+        command=command_to_send,
+    )
 
 @router.get("/me")
 async def get_me(node: Node = Depends(get_current_node)):
