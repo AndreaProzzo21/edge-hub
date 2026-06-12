@@ -140,9 +140,9 @@ async def register_agent(
 # ---------------------------------------------------------------------------
 
 ALERT_THRESHOLDS = {
-    "cpu": 50.0,
-    "temp": 60.0,
-    "disk": 40.0,
+    "cpu": 80.0,
+    "temp": 70.0,
+    "disk": 70.0,
 }
 COOLDOWN_MINUTES = 60
 
