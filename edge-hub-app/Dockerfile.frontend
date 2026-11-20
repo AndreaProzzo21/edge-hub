@@ -1,5 +1,5 @@
-# Usa la versione Alpine di Nginx, che è leggerissima (circa 20MB)
-FROM nginx:alpine
+# Nginx stable con security fix di novembre 2026
+FROM nginx:1.30.7-alpine
 
 # 1. Rimuovi la configurazione di default di Nginx per evitare conflitti
 RUN rm /etc/nginx/conf.d/default.conf
